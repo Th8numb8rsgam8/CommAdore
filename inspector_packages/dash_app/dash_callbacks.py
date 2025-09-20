@@ -189,6 +189,9 @@ class DashCallbacks:
 
             if radio_val:
                frame = frame[frame["Timestamp"] == time_value]
+            else: # radio_val = NO
+               if ctx.triggered_id == TIME_SLIDER:
+                  return no_update
 
             frame = frame[frame["Event_Type"].isin(self._external_messages)]
             if not frame.empty:

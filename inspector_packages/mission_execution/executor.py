@@ -70,6 +70,7 @@ class Executor:
 
       if mission_result.returncode != 0:
          cli_output.FATAL("Mission execution error... exiting!")
+         os.remove(comms_file)
          sys.exit(1)
 
       cli_output.OK(f"Mission execution of {startup_file} successfully completed.")
