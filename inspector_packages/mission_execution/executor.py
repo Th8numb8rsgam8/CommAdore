@@ -1,3 +1,4 @@
+import copy
 import subprocess
 import sys, os, shutil
 from pathlib import Path
@@ -122,5 +123,29 @@ class Executor:
 
       df = pd.read_csv(csv_file_path).fillna(value=substitutions)
       df["Timestamp"] = df["ISODate"].apply(lambda x: parser.isoparse(x).timestamp())
+      queue_info = self._get_queue_info(df)
 
-      return df
+      return df, queue_info
+
+   def _get_queue_info(self, df):
+
+      queue_events = df[df["Event_Type"].isin(["MESSAGE_QUEUED", "MESSAGE_TRANSMITTED"])]
+      queue_info = {sender: {} for sender in queue_events["Sender_Name"].unique()}
+      for sender, group in queue_events.groupby("Sender_Name"):
+         queue_info[sender] = {t: {} for t in group["Timestamp"].unique()}
+         comms = group["SenderPart_Name"].unique()
+         comms_update = {comm: [] for comm in comms}
+         for timestamp, time_grp in group.groupby("Timestamp"):
+            queue_info[sender][timestamp] = {comm: [] for comm in comms}
+            for _, row in time_grp.iterrows():
+               sender_comm = row["SenderPart_Name"]
+               if row["Event_Type"] == "MESSAGE_QUEUED":
+                  comms_update[sender_comm].append((row["Message_SerialNumber"], row["Message_Type"]))
+               elif row["Event_Type"] == "MESSAGE_TRANSMITTED":
+                  comms_update[sender_comm].remove((row["Message_SerialNumber"], row["Message_Type"]))
+               
+               increased_queue = len(comms_update[sender_comm]) > len(queue_info[sender][timestamp][sender_comm])
+               if increased_queue:
+                  queue_info[sender][timestamp][sender_comm] = copy.deepcopy(comms_update[sender_comm])
+
+      return queue_info

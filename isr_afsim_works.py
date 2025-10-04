@@ -22,10 +22,10 @@ class Inspector:
       mission_config, cesium_config = self._extract_configs(config_file)
 
       self._mission_executor = Executor(mission_config)
-      df = self._mission_executor.get_afsim_data()
+      df, queue_info = self._mission_executor.get_afsim_data()
 
       self._callbacks = DashCallbacks(
-         df, 
+         df, queue_info,
          land_color, ocean_color, 
          resolution, classification, 
          json.dumps(cesium_config),

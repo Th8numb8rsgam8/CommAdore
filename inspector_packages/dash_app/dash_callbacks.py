@@ -6,11 +6,11 @@ from datetime import datetime
 from dash import no_update, ctx, Input, Output, State
 from .dash_layout import DashLayout
 
-
 class DashCallbacks:
 
    def __init__(self, 
       df, 
+      queue_info,
       land_color=None, 
       ocean_color=None, 
       resolution=None, 
@@ -19,6 +19,7 @@ class DashCallbacks:
       use_cesium=False):
 
       self._df = df
+      self._queue_info = queue_info
       self._timestamps = self._df["Timestamp"].unique()
       self._current_frame = self._df
       self._cesium_config = cesium_config
@@ -195,7 +196,11 @@ class DashCallbacks:
 
             frame = frame[frame["Event_Type"].isin(self._external_messages)]
             if not frame.empty:
-               return self._network_plot.generate_network_figure(frame, network_layout, self._empty_plot)
+               return self._network_plot.generate_network_figure(
+                  frame, 
+                  network_layout, 
+                  self._empty_plot, 
+                  self._queue_info if radio_val else None)
             else:
                return go.Figure({"data": None, "layout": self._empty_plot})
 
