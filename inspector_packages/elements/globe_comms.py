@@ -1,6 +1,8 @@
 import sys
+import warnings
 import numpy as np
 from .globe_methods import GlobeMethods
+from utils import cli_output
 
 
 class GlobeComms:
@@ -191,44 +193,56 @@ class GlobeComms:
               scaling = rng_step["scaling"]
               break
 
-      num_arrows, remainder = divmod(platform_range, interval if interval is not None else platform_range + 1)
-      delta = (0.5 * remainder / platform_range) * (receiver_location - sender_location)
-      first_arrow = sender_location + delta
-      last_arrow = receiver_location - delta
+      with warnings.catch_warnings():
+         warnings.filterwarnings('error', category=RuntimeWarning)
+         try:
+            num_arrows, remainder = divmod(platform_range, interval if interval is not None else platform_range + 1)
+            delta = (0.5 * remainder / platform_range) * (receiver_location - sender_location)
+            first_arrow = sender_location + delta
+            last_arrow = receiver_location - delta
 
-      if GlobeMethods.los_hits_horizon(sender_location, receiver_location):
-         x, y, z = GlobeMethods.get_curve_points_on_sphere(first_arrow, last_arrow, int(num_arrows) if num_arrows != 0 else 10)
-      else:
-         x, y, z = GlobeMethods.get_points_on_line_segment(first_arrow, last_arrow, int(num_arrows) if num_arrows != 0 else 10)
+            if GlobeMethods.los_hits_horizon(sender_location, receiver_location):
+               x, y, z = GlobeMethods.get_curve_points_on_sphere(first_arrow, last_arrow, int(num_arrows) if num_arrows != 0 else 10)
+            else:
+               x, y, z = GlobeMethods.get_points_on_line_segment(first_arrow, last_arrow, int(num_arrows) if num_arrows != 0 else 10)
 
-      line_data.update({
-         "x": [sender_location[0]] + x + [receiver_location[0]],
-         "y": [sender_location[1]] + y + [receiver_location[1]],
-         "z": [sender_location[2]] + z + [receiver_location[2]],
-      })
+            line_data.update({
+               "x": [sender_location[0]] + x + [receiver_location[0]],
+               "y": [sender_location[1]] + y + [receiver_location[1]],
+               "z": [sender_location[2]] + z + [receiver_location[2]],
+            })
 
-      if num_arrows != 0:
-         u, v, w = [], [], []
-         arrow_x, arrow_y, arrow_z = [], [], []
-         for i in range(int(num_arrows)):
-            pt1 = np.array([x[i], y[i], z[i]])
-            pt2 = np.array([x[i+1], y[i+1], z[i+1]])
-            vector = pt2 - pt1
-            arrow_center = pt1 + 0.5 * vector
-            arrow_x.append(arrow_center[0])
-            arrow_y.append(arrow_center[1])
-            arrow_z.append(arrow_center[2])
-            u.append(vector[0])
-            v.append(vector[1])
-            w.append(vector[2])
-         arrows = {
-            "scaling": scaling,
-            "arrow_x": arrow_x,
-            "arrow_y": arrow_y,
-            "arrow_z": arrow_z,
-            "u": u, "v": v, "w": w
-         }
-         line_data["arrows"] = arrows
+            if num_arrows != 0:
+               u, v, w = [], [], []
+               arrow_x, arrow_y, arrow_z = [], [], []
+               for i in range(int(num_arrows)):
+                  pt1 = np.array([x[i], y[i], z[i]])
+                  pt2 = np.array([x[i+1], y[i+1], z[i+1]])
+                  vector = pt2 - pt1
+                  arrow_center = pt1 + 0.5 * vector
+                  arrow_x.append(arrow_center[0])
+                  arrow_y.append(arrow_center[1])
+                  arrow_z.append(arrow_center[2])
+                  u.append(vector[0])
+                  v.append(vector[1])
+                  w.append(vector[2])
+               arrows = {
+                  "scaling": scaling,
+                  "arrow_x": arrow_x,
+                  "arrow_y": arrow_y,
+                  "arrow_z": arrow_z,
+                  "u": u, "v": v, "w": w
+               }
+               line_data["arrows"] = arrows
+
+         except RuntimeWarning as e:
+            cli_output.WARNING(f"NO transmission line from {group['Sender_Name'].iloc[0]} to {group['Receiver_Name'].iloc[0]}.")
+            line_data.update({
+               "x": [sender_location[0], receiver_location[0]],
+               "y": [sender_location[1], receiver_location[1]],
+               "z": [sender_location[2], receiver_location[2]],
+            })
+            return line_data
 
       return line_data
 

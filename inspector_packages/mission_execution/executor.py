@@ -65,23 +65,28 @@ class Executor:
          f.write("\n".join([include_doc, collector_string, observer_string]))
 
       cli_output.INFO(f"Running mission for {startup_file}...")
-      mission_result = subprocess.run(
-         [self._mission_config["mission_exe_path"], str(comms_file.absolute())], 
-         cwd=str(startup_file.parent))
 
-      if mission_result.returncode != 0:
-         cli_output.FATAL("Mission execution error... exiting!")
+      try:
+         mission_result = subprocess.run(
+            [self._mission_config["mission_exe_path"], str(comms_file.absolute())], 
+            cwd=str(startup_file.parent))
+
+         if mission_result.returncode != 0:
+            cli_output.FATAL("Mission execution error... exiting!")
+            os.remove(comms_file)
+            sys.exit(1)
+
+         cli_output.OK(f"Mission execution of {startup_file} successfully completed.")
          os.remove(comms_file)
-         sys.exit(1)
 
-      cli_output.OK(f"Mission execution of {startup_file} successfully completed.")
-      os.remove(comms_file)
+         if not self._output_dir.exists():
+            os.mkdir(self._output_dir)
+         shutil.move(
+            startup_file.parent.joinpath("comms_analysis.csv"),
+            self._output_dir.joinpath(output_name + ".csv"))
 
-      if not self._output_dir.exists():
-         os.mkdir(self._output_dir)
-      shutil.move(
-         startup_file.parent.joinpath("comms_analysis.csv"),
-         self._output_dir.joinpath(output_name + ".csv"))
+      except KeyboardInterrupt as e:
+         os.remove(comms_file)
 
 
    def _configure_data(self, ran_mission=True):

@@ -73,6 +73,10 @@ class Inspector:
 
 if __name__ == "__main__":
 
-   cli_parser = CLIParser()
-   visualizer = Inspector(**cli_parser.arguments)
-   visualizer.run()
+   try:
+      cli_parser = CLIParser()
+      visualizer = Inspector(**cli_parser.arguments)
+      visualizer.run()
+   except KeyboardInterrupt as e:
+      cli_output.FATAL("Program aborted!")
+      sys.exit(1)

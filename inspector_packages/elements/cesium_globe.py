@@ -1,12 +1,12 @@
 import sys
 import warnings
-import subprocess
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from flask import make_response
 from dash import Input, Output, State, ClientsideFunction
 from .globe_methods import GlobeMethods
+from utils import cli_output
 from ..dash_app import (
    CESIUM_CONFIG, 
    CESIUM_EXTERNAL, 
@@ -60,15 +60,23 @@ class CesiumJSGlobe:
       elif 50000000 < platform_range:
          interval = 5000000
 
-      num_arrows, remainder = divmod(platform_range, interval)
-      delta = (0.5 * remainder / platform_range) * (receiver_location - sender_location)
-      first_arrow = sender_location + delta
-      last_arrow = receiver_location - delta
+      try:
+         num_arrows, remainder = divmod(platform_range, interval)
+         delta = (0.5 * remainder / platform_range) * (receiver_location - sender_location)
+         first_arrow = sender_location + delta
+         last_arrow = receiver_location - delta
 
-      if GlobeMethods.los_hits_horizon(sender_location, receiver_location):
-         return GlobeMethods.get_curve_points_on_sphere(first_arrow, last_arrow, int(num_arrows) if num_arrows != 0 else 10)
-      else:
-         return GlobeMethods.get_points_on_line_segment(first_arrow, last_arrow, int(num_arrows) if num_arrows != 0 else 10)
+         if GlobeMethods.los_hits_horizon(sender_location, receiver_location):
+            return GlobeMethods.get_curve_points_on_sphere(first_arrow, last_arrow, int(num_arrows) if num_arrows != 0 else 10)
+         else:
+            return GlobeMethods.get_points_on_line_segment(first_arrow, last_arrow, int(num_arrows) if num_arrows != 0 else 10)
+
+      except UnboundLocalError as e:
+         cli_output.WARNING(f"No transmission line from {group['Sender_Name'].iloc[0]} to {group['Receiver_Name'].iloc[0]}.")
+         return (
+            [sender_location[0], receiver_location[0]],
+            [sender_location[1], receiver_location[1]],
+            [sender_location[2], receiver_location[2]])
 
    @staticmethod
    def set_camera_view(internal_df, external_df):
