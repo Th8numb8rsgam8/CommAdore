@@ -85,11 +85,22 @@ class Executor:
             startup_file.parent.joinpath("comms_analysis.csv"),
             self._output_dir.joinpath(output_name + ".csv"))
 
+      except NotADirectoryError as e:
+         cli_output.FATAL(f"Mission execution error: {e.strerror}... exiting!")
+         os.remove(comms_file)
+         sys.exit(1)
+
+      except FileNotFoundError as e:
+         cli_output.FATAL(f"Mission execution error: {e.strerror}... exiting!")
+         os.remove(comms_file)
+         sys.exit(1)
+
       except KeyboardInterrupt as e:
          os.remove(comms_file)
+         raise KeyboardInterrupt
+      
 
-
-   def _configure_data(self, ran_mission=True):
+   def _configure_data(self):
 
       substitutions = {
          'Message_SerialNumber': -1,
@@ -103,11 +114,13 @@ class Executor:
          'OldMessage_Size': -1,
          'OldMessage_Priority': -1,
          'OldMessage_DataTag': -1,
+         'Sender_Side': 'unknown',
          'Sender_Type': 'unknown',
          'Sender_BaseType': 'unknown',
          'SenderPart_Type': 'unknown',
          'SenderPart_BaseType': 'unknown',
          'Receiver_Name': 'Does Not Exist',
+         'Receiver_Side': 'unknown',
          'Receiver_Type': 'unknown',
          'Receiver_BaseType': 'unknown',
          'ReceiverPart_Name': 'Does Not Exist',
@@ -117,16 +130,24 @@ class Executor:
          'CommInteraction_Failed': -1,
          'CommInteraction_FailedStatus': 'Does Not Exist',
          'Queue_Size': -1
-         }
+      }
 
       output_name = self._mission_config["output_name"]
       csv_file_path = self._output_dir.joinpath(output_name + ".csv")
 
       if not csv_file_path.exists():
          cli_output.FATAL(f"{csv_file_path.absolute()} does not exist... exiting!")
+         if self._output_dir.exists():
+            datasets = [f'{idx+1} {result.name.split(".")[0]}' for idx, result in enumerate(self._output_dir.iterdir())]
+            data_list = "\n".join(datasets)
+            cli_output.FATAL(f"The following datasets are available: \n{data_list}")
          sys.exit(1)
 
       df = pd.read_csv(csv_file_path).fillna(value=substitutions)
+      if df.empty:
+         cli_output.FATAL("No data was collected during scenario execution... exiting!")
+         sys.exit(1)
+
       df["Timestamp"] = df["ISODate"].apply(lambda x: parser.isoparse(x).timestamp())
       queue_info = self._get_queue_info(df)
 

@@ -53,12 +53,14 @@ class DashCallbacks:
          "Message_Originator": self._df["Message_Originator"].unique(),
          "Message_Type": self._df["Message_Type"].unique(),
          "Sender_Name": self._df["Sender_Name"].unique(),
+         "Sender_Side": self._df["Sender_Side"].unique(),
          "Sender_Type": self._df["Sender_Type"].unique(),
          "Sender_BaseType": self._df["Sender_BaseType"].unique(),
          "SenderPart_Name": self._df["SenderPart_Name"].unique(),
          "SenderPart_Type": self._df["SenderPart_Type"].unique(),
          "SenderPart_BaseType": self._df["SenderPart_BaseType"].unique(),
          "Receiver_Name": self._df["Receiver_Name"].unique(),
+         "Receiver_Side": self._df["Receiver_Side"].unique(),
          "Receiver_Type": self._df["Receiver_Type"].unique(),
          "Receiver_BaseType": self._df["Receiver_BaseType"].unique(),
          "ReceiverPart_Name": self._df["ReceiverPart_Name"].unique(),
@@ -355,12 +357,14 @@ class DashCallbacks:
          Input(MSG_ORIGINATOR, "value"),
          Input(MSG_TYPE, "value"),
          Input(SENDER_NAME, "value"),
+         Input(SENDER_SIDE, "value"),
          Input(SENDER_TYPE, "value"),
          Input(SENDER_BASETYPE, "value"),
          Input(SENDER_PART, "value"),
          Input(SENDER_PART_TYPE, "value"),
          Input(SENDER_PART_BASETYPE, "value"),
          Input(RECEIVER_NAME, "value"),
+         Input(RECEIVER_SIDE, "value"),
          Input(RECEIVER_TYPE, "value"),
          Input(RECEIVER_BASETYPE, "value"),
          Input(RECEIVER_PART, "value"),
@@ -371,9 +375,9 @@ class DashCallbacks:
       def store_filter_info(
          evt_type, 
          msg_serial_number, msg_originator, msg_type,
-         sender_name, sender_type, sender_basetype,
+         sender_name, sender_side, sender_type, sender_basetype,
          sender_part, sender_part_type, sender_part_basetype,
-         rcvr_name, rcvr_type, rcvr_basetype, 
+         rcvr_name, rcvr_side, rcvr_type, rcvr_basetype, 
          rcvr_part, rcvr_part_type, rcvr_part_basetype):
 
          self._filter_options["Event_Type"] = evt_type
@@ -381,12 +385,14 @@ class DashCallbacks:
          self._filter_options["Message_Originator"] = msg_originator
          self._filter_options["Message_Type"] = msg_type
          self._filter_options["Sender_Name"] = sender_name
+         self._filter_options["Sender_Side"] = sender_side
          self._filter_options["Sender_Type"] = sender_type
          self._filter_options["Sender_BaseType"] = sender_basetype
          self._filter_options["SenderPart_Name"] = sender_part
          self._filter_options["SenderPart_Type"] = sender_part_type
          self._filter_options["SenderPart_BaseType"] = sender_part_basetype
          self._filter_options["Receiver_Name"] = rcvr_name
+         self._filter_options["Receiver_Side"] = rcvr_side
          self._filter_options["Receiver_Type"] = rcvr_type
          self._filter_options["Receiver_BaseType"] = rcvr_basetype
          self._filter_options["ReceiverPart_Name"] = rcvr_part
@@ -408,12 +414,14 @@ class DashCallbacks:
          Output(MSG_ORIGINATOR, "options"),
          Output(MSG_TYPE, "options"),
          Output(SENDER_NAME, "options"),
+         Output(SENDER_SIDE, "options"),
          Output(SENDER_TYPE, "options"),
          Output(SENDER_BASETYPE, "options"),
          Output(SENDER_PART, "options"),
          Output(SENDER_PART_TYPE, "options"),
          Output(SENDER_PART_BASETYPE, "options"),
          Output(RECEIVER_NAME, "options"),
+         Output(RECEIVER_SIDE, "options"),
          Output(RECEIVER_TYPE, "options"),
          Output(RECEIVER_BASETYPE, "options"),
          Output(RECEIVER_PART, "options"),
