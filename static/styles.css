@@ -22,10 +22,41 @@ div.labeled-div {
   grid-template-columns: 15% 80%;
   grid-gap: 5px;
 }
+
 div.labeled-div label {
-  text-align: right; }
-div.labeled-div label:after {
-  content: ':'; }
+  text-align: right; 
+}
+
+div.labeled-div label:after,
+.radio-label:after {
+  content: ':'; 
+}
+
+.radio-label {
+  align-items: center;
+}
+
+.radio-group.radio-option {
+  display: grid;
+  grid-template-columns: 80% 20%;
+  text-align: left;
+  padding-top: 0px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.radio-option > .row:first-child {
+  align-items: center;
+}
+
+.radio-option > .row:last-child {
+  text-align: right;
+}
+
+.radio-group {
+  text-align: center;
+  padding-top: 20px;
+}
 
 .radio-group .form-check {
   padding-left: 0;

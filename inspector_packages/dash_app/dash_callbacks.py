@@ -3,14 +3,16 @@ from . import *
 from ..elements import *
 from inspector_packages import *
 from datetime import datetime
+import pandas as pd
 from dash import no_update, ctx, Input, Output, State
 from .dash_layout import DashLayout
+
+import pdb
 
 class DashCallbacks:
 
    def __init__(self, 
-      df, 
-      queue_info,
+      data,
       land_color=None, 
       ocean_color=None, 
       resolution=None, 
@@ -18,16 +20,16 @@ class DashCallbacks:
       cesium_config=None,
       use_cesium=False):
 
-      self._df = df
-      self._queue_info = queue_info
-      self._timestamps = self._df["Timestamp"].unique()
-      self._current_frame = self._df
+      self._data = data
+      self._timestamps = data["comm"]["Timestamp"].unique()
+
+      self._current_frame = {"comm": data["comm"], "track": data["track"]} 
       self._cesium_config = cesium_config
 
       self._network_plot = NetworkPlot()
-      self._globe_comms = GlobeComms()
+      self._globe_platforms = GlobePlatforms(data["platform"])
       self._dashboard = DashLayout(
-         df, 
+         data,
          self._timestamps, classification, 
          self._network_plot.figure_name, 
          cesium_config,
@@ -37,7 +39,7 @@ class DashCallbacks:
       if use_cesium:
          self._cesium_globe = CesiumJSGlobe(self._app)
       else:
-         self._globe_plot = GlobePlot(df, land_color, ocean_color, resolution)
+         self._globe_plot = GlobePlot(data, land_color, ocean_color, resolution)
 
       self._internal_messages = ["MESSAGE_INTERNAL", "MESSAGE_INCOMING", "MESSAGE_OUTGOING"]
       self._external_messages = ["MESSAGE_DELIVERY_ATTEMPT", "MESSAGE_RECEIVED"]
@@ -48,24 +50,24 @@ class DashCallbacks:
       }
 
       self._filter_options = {
-         "Event_Type": self._df["Event_Type"].unique(),
-         "Message_SerialNumber": self._df["Message_SerialNumber"].unique(),
-         "Message_Originator": self._df["Message_Originator"].unique(),
-         "Message_Type": self._df["Message_Type"].unique(),
-         "Sender_Name": self._df["Sender_Name"].unique(),
-         "Sender_Side": self._df["Sender_Side"].unique(),
-         "Sender_Type": self._df["Sender_Type"].unique(),
-         "Sender_BaseType": self._df["Sender_BaseType"].unique(),
-         "SenderPart_Name": self._df["SenderPart_Name"].unique(),
-         "SenderPart_Type": self._df["SenderPart_Type"].unique(),
-         "SenderPart_BaseType": self._df["SenderPart_BaseType"].unique(),
-         "Receiver_Name": self._df["Receiver_Name"].unique(),
-         "Receiver_Side": self._df["Receiver_Side"].unique(),
-         "Receiver_Type": self._df["Receiver_Type"].unique(),
-         "Receiver_BaseType": self._df["Receiver_BaseType"].unique(),
-         "ReceiverPart_Name": self._df["ReceiverPart_Name"].unique(),
-         "ReceiverPart_Type": self._df["ReceiverPart_Type"].unique(),
-         "ReceiverPart_BaseType": self._df["ReceiverPart_BaseType"].unique()
+         "Event_Type": self._data["comm"]["Event_Type"].unique(),
+         "Message_SerialNumber": self._data["comm"]["Message_SerialNumber"].unique(),
+         "Message_Originator": self._data["comm"]["Message_Originator"].unique(),
+         "Message_Type": self._data["comm"]["Message_Type"].unique(),
+         "Sender_Name": self._data["comm"]["Sender_Name"].unique(),
+         "Sender_Side": self._data["comm"]["Sender_Side"].unique(),
+         "Sender_Type": self._data["comm"]["Sender_Type"].unique(),
+         "Sender_BaseType": self._data["comm"]["Sender_BaseType"].unique(),
+         "SenderPart_Name": self._data["comm"]["SenderPart_Name"].unique(),
+         "SenderPart_Type": self._data["comm"]["SenderPart_Type"].unique(),
+         "SenderPart_BaseType": self._data["comm"]["SenderPart_BaseType"].unique(),
+         "Receiver_Name": self._data["comm"]["Receiver_Name"].unique(),
+         "Receiver_Side": self._data["comm"]["Receiver_Side"].unique(),
+         "Receiver_Type": self._data["comm"]["Receiver_Type"].unique(),
+         "Receiver_BaseType": self._data["comm"]["Receiver_BaseType"].unique(),
+         "ReceiverPart_Name": self._data["comm"]["ReceiverPart_Name"].unique(),
+         "ReceiverPart_Type": self._data["comm"]["ReceiverPart_Type"].unique(),
+         "ReceiverPart_BaseType": self._data["comm"]["ReceiverPart_BaseType"].unique()
       }
 
       self._empty_plot = {
@@ -110,28 +112,40 @@ class DashCallbacks:
       frame = self._current_frame
 
       if ctx.triggered_id != TIME_SLIDER:
-         self._timestamps = frame["Timestamp"].unique()
+         self._timestamps = frame["comm"]["Timestamp"].unique()
 
       if ctx.triggered_id != TIME_SLIDER:
-         frame = frame[frame["Timestamp"] == self._timestamps[0]]
+         comm_frame = frame["comm"][frame["comm"]["Timestamp"] == self._timestamps[0]]
+         platform_states = self._globe_platforms.get_platform_states(self._timestamps[0])
+         t = platform_states["Timestamp"].iloc[0]
+         track_frame = frame["track"][frame["track"]["Timestamp"] <= t]
          current_time = datetime.utcfromtimestamp(self._timestamps[0]).strftime("%H:%M:%S.%f")[:-3]
       else:
-         frame = frame[frame["Timestamp"] == value]
+         comm_frame = frame["comm"][frame["comm"]["Timestamp"] == value]
+         platform_states = self._globe_platforms.get_platform_states(value)
+         t = platform_states["Timestamp"].iloc[0]
+         track_frame = frame["track"][frame["track"]["Timestamp"] <= t]
          current_time = datetime.utcfromtimestamp(value).strftime("%H:%M:%S.%f")[:-3]
 
-      internal = frame[frame["Event_Type"].isin(self._internal_messages)]
-      external = frame[frame["Event_Type"].isin(self._external_messages)]
+      internal = comm_frame[comm_frame["Event_Type"].isin(self._internal_messages)]
+      external = comm_frame[comm_frame["Event_Type"].isin(self._external_messages)]
 
-      return (internal, external, current_time)
+      current_data = {
+         "comm": {"internal": internal, "external": external},
+         "track": track_frame,
+         "platform": platform_states
+         }
+
+      return (current_data, current_time)
 
    def _filter_dataframe(self):
 
-      df = self._df
+      comm_df = self._data["comm"]
       for key, val in self._filter_options.items():
          if val is not None and len(val) != 0:
-            df = df[df[key].isin(val)]
+            comm_df = comm_df[comm_df[key].isin(val)]
 
-      return df
+      return {"comm": comm_df, "track": self._data["track"]}
 
    def _define_time_label_callback(self):
 
@@ -166,7 +180,7 @@ class DashCallbacks:
          bar_graph_category, bar_stack_category,
          filter_data, radio_val):
 
-         frame = self._current_frame
+         frame = self._current_frame["comm"]
 
          if radio_val:
             frame = frame[frame["Timestamp"] == time_value]
@@ -184,25 +198,30 @@ class DashCallbacks:
             Input(TIME_SLIDER, "value"),
             Input(NETWORK_LAYOUT, "value"),
             Input(DISPLAY_MEMORY, "data"),
-            Input(RADIOS, 'value')
+            Input(RADIOS, 'value'),
+            Input(QUEUE_INFO_TOGGLE, 'value')
          )
-         def update_network_plot(time_value, network_layout, filter_data, radio_val):
+         def update_network_plot(time_value, network_layout, filter_data, radio_val, queue_info_toggle):
 
-            frame = self._current_frame
+            comm_df = self._current_frame["comm"]
+            track_df = None
 
             if radio_val:
-               frame = frame[frame["Timestamp"] == time_value]
+               comm_df = comm_df[comm_df["Timestamp"] == time_value]
+               track_df = self._current_frame["track"][self._current_frame["track"]["Timestamp"] <= time_value]
             else: # radio_val = NO
                if ctx.triggered_id == TIME_SLIDER:
                   return no_update
 
-            frame = frame[frame["Event_Type"].isin(self._external_messages)]
-            if not frame.empty:
+            comm_df = comm_df[comm_df["Event_Type"].isin(self._external_messages)]
+            if not comm_df.empty or (radio_val and not track_df.empty):
                return self._network_plot.generate_network_figure(
-                  frame, 
+                  comm_df, 
+                  track_df, 
+                  self._globe_platforms.get_platform_states(time_value),
                   network_layout, 
                   self._empty_plot, 
-                  self._queue_info if radio_val else None)
+                  self._data["queues"] if (radio_val and queue_info_toggle) else None)
             else:
                return go.Figure({"data": None, "layout": self._empty_plot})
 
@@ -263,19 +282,32 @@ class DashCallbacks:
       )
       def filter_frame(value, filter_data):
 
-         internal, external, current_time = self._get_current_data(value)
+         current_data, current_time = self._get_current_data(value)
+         external = current_data["comm"]["external"]
+         internal = current_data["comm"]["internal"]
+         track_data = current_data["track"]
+         platform_data = current_data["platform"]
 
          update = []
+         if not track_data.empty:
+            track_events, track_arrows = GlobeTracks.update_track_events(track_data, platform_data)
+            update.extend(track_events)
+            update.extend(track_arrows)
+
          if not external.empty:
-            transmission_plots, transmission_directions = self._globe_comms.update_external_events(external, current_time)
+            transmission_plots, transmission_directions = GlobeComms.update_external_events(external, current_time)
             update.extend(transmission_directions)
             update.extend(transmission_plots)
 
          if not internal.empty:
-            new_plot = self._globe_comms.update_internal_events(internal, current_time)
+            new_plot = GlobeComms.update_internal_events(internal, current_time)
             update.append(new_plot)
 
-         self._globe_plot.set_camera_view(internal, external)
+         # if platform_data is not None:
+         #    self._globe_platforms.update_platform_positions()
+         #    pdb.set_trace()
+
+         self._globe_plot.set_camera_view(current_data)
          fig = self._globe_plot.build_earth_figure(update)
 
          if ctx.triggered_id != TIME_SLIDER and len(self._timestamps) != 0:
@@ -289,7 +321,8 @@ class DashCallbacks:
    def _define_cesium_filter_callback(self):
 
       @self._app.callback(
-         [Output(CESIUM_EXTERNAL, 'data'), Output(CESIUM_INTERNAL, 'data'), Output(CESIUM_CAMERA, 'data'),
+         [Output(CESIUM_EXTERNAL, 'data'), Output(CESIUM_INTERNAL, 'data'), 
+          Output(CESIUM_TRACKS, 'data'), Output(CESIUM_CAMERA, 'data'),
          Output(TIME_SLIDER, 'min'), Output(TIME_SLIDER, 'max'),
          Output(TIME_SLIDER, 'value'), Output(TIME_SLIDER, 'marks')],
          Input(TIME_SLIDER, 'value'),
@@ -297,15 +330,35 @@ class DashCallbacks:
       )
       def cesium_globe_callback(value, filter_data):
 
-         internal, external, current_time = self._get_current_data(value)
+         current_data, current_time = self._get_current_data(value)
+         external = current_data["comm"]["external"]
+         internal = current_data["comm"]["internal"]
+         track_data = current_data["track"]
+         platform_data = current_data["platform"]
+
+         track_json = {}
+         if not track_data.empty:
+            track_json = CesiumJSGlobe.get_track_details(track_data, platform_data)
 
          external_json = {}
          if not external.empty:
             group_idx = 1
             for transmission, group in external.groupby(["Sender_Name", "SenderPart_Name", "Receiver_Name", "ReceiverPart_Name"]):
-               
-               x, y, z = CesiumJSGlobe.get_line_points(group)
-               
+
+               sender_name, _, receiver_name, _ = transmission
+               sender_location = np.array([
+                  group["SenderLocation_X"].values[0], 
+                  group["SenderLocation_Y"].values[0], 
+                  group["SenderLocation_Z"].values[0]])
+
+               receiver_location = np.array([
+                  group["ReceiverLocation_X"].values[0], 
+                  group["ReceiverLocation_Y"].values[0], 
+                  group["ReceiverLocation_Z"].values[0]])
+                           
+               platform_range = group["SenderToRcvr_Range"].values[0]
+
+               x, y, z = CesiumJSGlobe.get_line_points(sender_name, sender_location, receiver_name, receiver_location, platform_range)
                external_json[f"group_{group_idx}"] = {
                   "transmission": list(transmission), 
                   "info": group.to_dict(),
@@ -332,6 +385,7 @@ class DashCallbacks:
             return [
                json.dumps(external_json), 
                json.dumps(internal_json), 
+               json.dumps(track_json),
                json.dumps(camera_view), 
                self._timestamps[0], 
                self._timestamps[-1], 
@@ -341,6 +395,7 @@ class DashCallbacks:
             return [
                json.dumps(external_json), 
                json.dumps(internal_json), 
+               json.dumps(track_json),
                json.dumps(camera_view), 
                no_update, 
                no_update, 
@@ -435,7 +490,7 @@ class DashCallbacks:
 
          options = [] 
          for column in self._filter_options:
-            options.append(self._current_frame[column].unique())
+            options.append(self._current_frame["comm"][column].unique())
 
          options.append(True)
          

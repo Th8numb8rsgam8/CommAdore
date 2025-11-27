@@ -4,17 +4,20 @@ import pandas as pd
 from inspector_packages import *
 from .globe_methods import GlobeMethods
 
+import pdb
 
 class GlobePlot:
 
-   def __init__(self, df, land_color, ocean_color, resolution):
+   CAMERA_ZOOM = 3
 
-      self._camera_view = {"x": 3, "y": 0, "z": 0}
+   def __init__(self, data, land_color, ocean_color, resolution):
+
+      self._camera_view = {"x": GlobePlot.CAMERA_ZOOM, "y": 0, "z": 0}
 
       self._current_file = Path(__file__) 
 
       self._set_earth_surface(land_color, ocean_color, resolution)
-      self._set_axes_attributes(df)
+      self._set_axes_attributes(data)
 
 
    def build_earth_figure(self, traces):
@@ -29,9 +32,13 @@ class GlobePlot:
       return fig
 
 
-   def set_camera_view(self, internal_df, external_df):
+   def set_camera_view(self, data):
 
-      camera_zoom = 3
+      internal_df = data["comm"]["internal"]
+      external_df = data["comm"]["external"]
+      track_df = data["track"]
+      platform_df = data["platform"]
+
       internal_pts = internal_df[["SenderLocation_X", "SenderLocation_Y", "SenderLocation_Z"]]
       sender_pts = external_df[["SenderLocation_X", "SenderLocation_Y", "SenderLocation_Z"]]
       rcvr_pts = external_df[["ReceiverLocation_X", "ReceiverLocation_Y", "ReceiverLocation_Z"]]
@@ -40,7 +47,13 @@ class GlobePlot:
           "ReceiverLocation_Y": "SenderLocation_Y",
           "ReceiverLocation_Z": "SenderLocation_Z"})
 
-      points_df = pd.concat([internal_pts, sender_pts, rcvr_pts], ignore_index=True)
+      platform_pts = platform_df[["Location_X", "Location_Y", "Location_Z"]]
+      platform_pts = platform_pts.rename(columns=
+         {"Location_X": "SenderLocation_X",
+          "Location_Y": "SenderLocation_Y",
+          "Location_Z": "SenderLocation_Z"})
+
+      points_df = pd.concat([internal_pts, sender_pts, rcvr_pts, platform_pts], ignore_index=True)
 
       with warnings.catch_warnings():
          warnings.filterwarnings('error', category=RuntimeWarning)
@@ -51,7 +64,7 @@ class GlobePlot:
             camera_center = camera_zoom * camera_vector
             self._camera_view = {"x": camera_center[0], "y": camera_center[1], "z": camera_center[2]}
          except RuntimeWarning as e:
-            self._camera_view = {"x": camera_zoom, "y": 0, "z": 0}
+            self._camera_view = {"x": GlobePlot.CAMERA_ZOOM, "y": 0, "z": 0}
 
 
    def _load_earth_data(self, land_color=None, ocean_color=None, resolution=None):
@@ -96,11 +109,19 @@ class GlobePlot:
       }
 
 
-   def _set_axes_range(self, df):
+   def _set_axes_range(self, data):
 
-      x_limit = df[["SenderLocation_X", "ReceiverLocation_X"]].abs().max().max()
-      y_limit = df[["SenderLocation_Y", "ReceiverLocation_Y"]].abs().max().max()
-      z_limit = df[["SenderLocation_Z", "ReceiverLocation_Z"]].abs().max().max()
+      comm_x_limit = data["comm"][["SenderLocation_X", "ReceiverLocation_X"]].abs().max().max()
+      comm_y_limit = data["comm"][["SenderLocation_Y", "ReceiverLocation_Y"]].abs().max().max()
+      comm_z_limit = data["comm"][["SenderLocation_Z", "ReceiverLocation_Z"]].abs().max().max()
+
+      platform_x_limit = data["platform"]["Location_X"].abs().max()
+      platform_y_limit = data["platform"]["Location_Y"].abs().max()
+      platform_z_limit = data["platform"]["Location_Z"].abs().max()
+
+      x_limit = max(comm_x_limit, platform_x_limit)
+      y_limit = max(comm_y_limit, platform_y_limit)
+      z_limit = max(comm_z_limit, platform_z_limit)
 
       self._axes_range = [
          -max(x_limit, y_limit, z_limit, GlobeMethods.EQUATOR_RADIUS),
@@ -108,9 +129,9 @@ class GlobePlot:
       ]
 
 
-   def _set_axes_attributes(self, df):
+   def _set_axes_attributes(self, data):
 
-      self._set_axes_range(df)
+      self._set_axes_range(data)
 
       self._axes_attributes = {
          "range": self._axes_range,
@@ -128,6 +149,8 @@ class GlobePlot:
    def _globe_layout(self):
 
       globe_layout = {
+         "paper_bgcolor":'rgba(0,0,0,0)',
+         "plot_bgcolor":'rgba(0,0,0,0)',
          "scene":
          {
             "xaxis": self._axes_attributes,

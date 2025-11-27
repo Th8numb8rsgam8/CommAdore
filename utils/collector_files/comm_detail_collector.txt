@@ -1,0 +1,673 @@
+script_variables
+
+   FileIO commFile = FileIO();
+   string commFileName = "comms_analysis.csv";
+   string emptyData = "N/A";
+   bool commFileOpened = false;
+   double heightOffset = -100;
+
+   Array<string> columnNames = {
+      "ISODate",
+      "Event_Type",
+      "Message_SerialNumber",
+      "Message_Originator",
+      "Message_Type",
+      "Message_Size",
+      "Message_Priority",
+      "Message_DataTag",
+      "OldMessage_SerialNumber",
+      "OldMessage_Originator",
+      "OldMessage_Type",
+      "OldMessage_Size",
+      "OldMessage_Priority",
+      "OldMessage_DataTag",
+      "Sender_Name",
+      "Sender_Side",
+      "Sender_Type",
+      "Sender_BaseType",
+      "SenderLocation_X",
+      "SenderLocation_Y",
+      "SenderLocation_Z",
+      "Sender_Latitude",
+      "Sender_Longitude",
+      "Sender_Altitude",
+      "SenderPart_Name",
+      "SenderPart_Type",
+      "SenderPart_BaseType",
+      "Receiver_Name",
+      "Receiver_Side",
+      "Receiver_Type",
+      "Receiver_BaseType",
+      "ReceiverLocation_X",
+      "ReceiverLocation_Y",
+      "ReceiverLocation_Z",
+      "Receiver_Latitude",
+      "Receiver_Longitude",
+      "Receiver_Altitude",
+      "ReceiverPart_Name",
+      "ReceiverPart_Type",
+      "ReceiverPart_BaseType",
+      "SenderToRcvr_Range",
+      "CommInteraction_Succeeded",
+      "CommInteraction_Failed",
+      "CommInteraction_FailedStatus",
+      "Queue_Size"
+   };
+end_script_variables
+
+
+script void RecordInternalMessages(string aEventType, WsfPlatformPart aXmtr, WsfPlatformPart aRcvr, WsfMessage aMessage)
+   WsfPlatformPart sender = aXmtr;
+   WsfPlatformPart receiver = aRcvr;
+   WsfMessage msg = aMessage;
+
+   WsfGeoPoint sender_pt = sender.Platform().Location();
+
+   if (sender_pt.HeightAboveEllipsoid() <= 0)
+   {
+      sender_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   WsfGeoPoint rcvr_pt = receiver.Platform().Location();
+
+   if (rcvr_pt.HeightAboveEllipsoid() <= 0)
+   {
+      rcvr_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   double rng;
+   if (WsfTerrain.MaskedByTerrain(sender_pt, rcvr_pt, 1))
+   {
+      rng = sender_pt.GroundRangeTo(rcvr_pt);
+   }
+   else
+   {
+      rng = sender_pt.SlantRangeTo(rcvr_pt);
+   }
+    
+   Array<string> dataRow = {
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      aEventType,
+      (string)aMessage.SerialNumber(),
+      aMessage.Originator(),
+      aMessage.Type(),
+      (string)aMessage.SizeInBytes(),
+      (string)aMessage.Priority(),
+      (string)aMessage.DataTag(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      sender.Platform().Name(),
+      sender.Platform().Side(),
+      sender.Platform().Type(),
+      sender.Platform().BaseType(),
+      (string)sender_pt.X(),
+      (string)sender_pt.Y(),  
+      (string)sender_pt.Z(),
+      (string)sender_pt.Latitude(),
+      (string)sender_pt.Longitude(),
+      (string)sender_pt.HeightAboveEllipsoid(),
+      sender.Name(),
+      sender.Type(),
+      sender.BaseType(),
+      receiver.Platform().Name(),
+      receiver.Platform().Side(),
+      receiver.Platform().Type(),
+      receiver.Platform().BaseType(),
+      (string)rcvr_pt.X(),
+      (string)rcvr_pt.Y(),  
+      (string)rcvr_pt.Z(),
+      (string)rcvr_pt.Latitude(),
+      (string)rcvr_pt.Longitude(),
+      (string)rcvr_pt.HeightAboveEllipsoid(),
+      receiver.Name(),
+      receiver.Type(),
+      receiver.BaseType(),
+      (string)rng,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData
+   };
+
+   if (commFileOpened)
+   {
+      commFile.Writeln(",".Join(dataRow));
+   }
+end_script
+
+script void RecordTransmitMessages(string aEventType, WsfComm aComm, WsfMessage aMsg)
+
+   WsfGeoPoint sender_pt = aComm.Platform().Location();
+   if (sender_pt.HeightAboveEllipsoid() <= 0)
+   {
+      sender_pt.OffsetNED(0, 0, heightOffset);
+   }
+
+   Array<string> dataRow = {
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      aEventType,
+      (string)aMsg.SerialNumber(),
+      aMsg.Originator(),
+      aMsg.Type(),
+      (string)aMsg.SizeInBytes(),
+      (string)aMsg.Priority(),
+      (string)aMsg.DataTag(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      aComm.Platform().Name(),
+      aComm.Platform().Side(),
+      aComm.Platform().Type(),
+      aComm.Platform().BaseType(),
+      (string)sender_pt.X(),
+      (string)sender_pt.Y(),  
+      (string)sender_pt.Z(),
+      (string)sender_pt.Latitude(),
+      (string)sender_pt.Longitude(),
+      (string)sender_pt.HeightAboveEllipsoid(),
+      aComm.Name(),
+      aComm.Type(),
+      aComm.BaseType(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData
+   };
+
+   if (commFileOpened)
+   {
+      commFile.Writeln(",".Join(dataRow));
+   } 
+
+end_script
+
+script void comm_MessageOutgoing(WsfPlatformPart aXmtr, WsfComm aRcvr, WsfMessage aMessage)
+
+   RecordInternalMessages("MESSAGE_OUTGOING", aXmtr, aRcvr, aMessage);
+   
+end_script
+
+script void comm_MessageIncoming(WsfComm aXmtr, WsfPlatformPart aRcvr, WsfMessage aMessage)
+
+   RecordInternalMessages("MESSAGE_INCOMING", aXmtr, aRcvr, aMessage);
+   
+end_script
+
+script void comm_MessageInternal(WsfPlatformPart aXmtr, WsfPlatformPart aRcvr, WsfMessage aMessage)
+
+   RecordInternalMessages("MESSAGE_INTERNAL", aXmtr, aRcvr, aMessage);
+   
+end_script
+
+script void comm_MessageDeliveryAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult) 
+
+   WsfGeoPoint sender_pt = aXmtr.Platform().Location();
+   if (sender_pt.HeightAboveEllipsoid() <= 0)
+   {
+      sender_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   WsfGeoPoint rcvr_pt = aRcvr.Platform().Location();
+   if (rcvr_pt.HeightAboveEllipsoid() <= 0)
+   {
+      rcvr_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   double rng;
+   if (WsfTerrain.MaskedByTerrain(sender_pt, rcvr_pt, 1))
+   {
+      rng = sender_pt.GroundRangeTo(rcvr_pt);
+   }
+   else
+   {
+      rng = sender_pt.SlantRangeTo(rcvr_pt);
+   }
+   
+   Array<string> dataRow = {
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      "MESSAGE_DELIVERY_ATTEMPT",
+      (string)aMsg.SerialNumber(),
+      aMsg.Originator(),
+      aMsg.Type(),
+      (string)aMsg.SizeInBytes(),
+      (string)aMsg.Priority(),
+      (string)aMsg.DataTag(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      aXmtr.Platform().Name(),
+      aXmtr.Platform().Side(),
+      aXmtr.Platform().Type(),
+      aXmtr.Platform().BaseType(),
+      (string)sender_pt.X(),
+      (string)sender_pt.Y(),  
+      (string)sender_pt.Z(),
+      (string)sender_pt.Latitude(),
+      (string)sender_pt.Longitude(),
+      (string)sender_pt.HeightAboveEllipsoid(),
+      aXmtr.Name(),
+      aXmtr.Type(),
+      aXmtr.BaseType(),
+      aRcvr.Platform().Name(),
+      aRcvr.Platform().Side(),
+      aRcvr.Platform().Type(),
+      aRcvr.Platform().BaseType(),
+      (string)rcvr_pt.X(),
+      (string)rcvr_pt.Y(),  
+      (string)rcvr_pt.Z(),
+      (string)rcvr_pt.Latitude(),
+      (string)rcvr_pt.Longitude(),
+      (string)rcvr_pt.HeightAboveEllipsoid(),
+      aRcvr.Name(),
+      aRcvr.Type(),
+      aRcvr.BaseType(),
+      (string)rng,
+      (string)aResult.Succeeded(),
+      (string)aResult.Failed(),
+      aResult.FailedStatus(),
+      emptyData
+   };
+
+   if (commFileOpened)
+   {
+      commFile.Writeln(",".Join(dataRow));
+   }
+end_script
+
+script void comm_MessageDiscarded(WsfComm aComm, WsfMessage aMsg, string aReason) 
+
+   WsfComm aXmtr = aComm;
+   
+   WsfGeoPoint sender_pt = aXmtr.Platform().Location();
+   if (sender_pt.HeightAboveEllipsoid() <= 0)
+   {
+      sender_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   Array<string> dataRow = {
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      "MESSAGE_DISCARDED",
+      (string)aMsg.SerialNumber(),
+      aMsg.Originator(),
+      aMsg.Type(),
+      (string)aMsg.SizeInBytes(),
+      (string)aMsg.Priority(),
+      (string)aMsg.DataTag(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      aXmtr.Platform().Name(),
+      aXmtr.Platform().Side(),
+      aXmtr.Platform().Type(),
+      aXmtr.Platform().BaseType(),
+      (string)sender_pt.X(),
+      (string)sender_pt.Y(),  
+      (string)sender_pt.Z(),
+      (string)sender_pt.Latitude(),
+      (string)sender_pt.Longitude(),
+      (string)sender_pt.HeightAboveEllipsoid(),
+      aXmtr.Name(),
+      aXmtr.Type(),
+      aXmtr.BaseType(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      aReason,
+      emptyData
+   };
+
+   if (commFileOpened)
+   {
+      commFile.Writeln(",".Join(dataRow));
+   }
+end_script
+
+script void comm_MessageFailedRouting(WsfComm aComm, WsfPlatform aReceivingPlatform, WsfMessage aMsg) 
+
+   WsfComm aXmtr = aComm;
+   WsfPlatform aRcvr = aReceivingPlatform;
+   
+   WsfGeoPoint sender_pt = aXmtr.Platform().Location();
+   if (sender_pt.HeightAboveEllipsoid() <= 0)
+   {
+      sender_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   WsfGeoPoint rcvr_pt = aRcvr.Location();
+   if (rcvr_pt.HeightAboveEllipsoid() <= 0)
+   {
+      rcvr_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   double rng;
+   if (WsfTerrain.MaskedByTerrain(sender_pt, rcvr_pt, 1))
+   {
+      rng = sender_pt.GroundRangeTo(rcvr_pt);
+   }
+   else
+   {
+      rng = sender_pt.SlantRangeTo(rcvr_pt);
+   }
+   
+   Array<string> dataRow = {
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      "MESSAGE_FAILED_ROUTING",
+      (string)aMsg.SerialNumber(),
+      aMsg.Originator(),
+      aMsg.Type(),
+      (string)aMsg.SizeInBytes(),
+      (string)aMsg.Priority(),
+      (string)aMsg.DataTag(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      aXmtr.Platform().Name(),
+      aXmtr.Platform().Side(),
+      aXmtr.Platform().Type(),
+      aXmtr.Platform().BaseType(),
+      (string)sender_pt.X(),
+      (string)sender_pt.Y(),  
+      (string)sender_pt.Z(),
+      (string)sender_pt.Latitude(),
+      (string)sender_pt.Longitude(),
+      (string)sender_pt.HeightAboveEllipsoid(),
+      aXmtr.Name(),
+      aXmtr.Type(),
+      aXmtr.BaseType(),
+      aRcvr.Name(),
+      aRcvr.Side(),
+      aRcvr.Type(),
+      aRcvr.BaseType(),
+      (string)rcvr_pt.X(),
+      (string)rcvr_pt.Y(),  
+      (string)rcvr_pt.Z(),
+      (string)rcvr_pt.Latitude(),
+      (string)rcvr_pt.Longitude(),
+      (string)rcvr_pt.HeightAboveEllipsoid(),
+      emptyData,
+      emptyData,
+      emptyData,
+      (string)rng,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData
+   };
+
+   if (commFileOpened)
+   {
+      commFile.Writeln(",".Join(dataRow));
+   }
+    
+end_script
+
+script void comm_MessageHop(WsfComm aRcvrPtr, WsfComm aDstPtr, WsfMessage aMsg) 
+
+   RecordInternalMessages("MESSAGE_HOP", aRcvrPtr, aDstPtr, aMsg);
+
+end_script
+
+script void comm_MessageUpdated(WsfComm aComm, WsfMessage aOldMsg, WsfMessage aNewMsg)
+
+   WsfGeoPoint sender_pt = aComm.Platform().Location();
+   if (sender_pt.HeightAboveEllipsoid() <= 0)
+   {
+      sender_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   Array<string> dataRow = {
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      "MESSAGE_UPDATED",
+      (string)aNewMsg.SerialNumber(),
+      aNewMsg.Originator(),
+      aNewMsg.Type(),
+      (string)aNewMsg.SizeInBytes(),
+      (string)aNewMsg.Priority(),
+      (string)aNewMsg.DataTag(),
+      (string)aOldMsg.SerialNumber(),
+      aOldMsg.Originator(),
+      aOldMsg.Type(),
+      (string)aOldMsg.SizeInBytes(),
+      (string)aOldMsg.Priority(),
+      (string)aOldMsg.DataTag(),
+      aComm.Platform().Name(),
+      aComm.Platform().Side(),
+      aComm.Platform().Type(),
+      aComm.Platform().BaseType(),
+      (string)sender_pt.X(),
+      (string)sender_pt.Y(),  
+      (string)sender_pt.Z(),
+      (string)sender_pt.Latitude(),
+      (string)sender_pt.Longitude(),
+      (string)sender_pt.HeightAboveEllipsoid(),
+      aComm.Name(),
+      aComm.Type(),
+      aComm.BaseType(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData
+   };
+
+   if (commFileOpened)
+   {
+      commFile.Writeln(",".Join(dataRow));
+   } 
+
+end_script
+
+script void comm_MessageQueued(WsfComm aComm, WsfMessage aMsg, int aQueueSize) 
+
+   WsfGeoPoint sender_pt = aComm.Platform().Location();
+   if (sender_pt.HeightAboveEllipsoid() <= 0)
+   {
+      sender_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   Array<string> dataRow = {
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      "MESSAGE_QUEUED",
+      (string)aMsg.SerialNumber(),
+      aMsg.Originator(),
+      aMsg.Type(),
+      (string)aMsg.SizeInBytes(),
+      (string)aMsg.Priority(),
+      (string)aMsg.DataTag(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      aComm.Platform().Name(),
+      aComm.Platform().Side(),
+      aComm.Platform().Type(),
+      aComm.Platform().BaseType(),
+      (string)sender_pt.X(),
+      (string)sender_pt.Y(),  
+      (string)sender_pt.Z(),
+      (string)sender_pt.Latitude(),
+      (string)sender_pt.Longitude(),
+      (string)sender_pt.HeightAboveEllipsoid(),
+      aComm.Name(),
+      aComm.Type(),
+      aComm.BaseType(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      (string)aQueueSize
+   };
+
+   if (commFileOpened)
+   {
+      commFile.Writeln(",".Join(dataRow));
+   } 
+end_script
+
+script void comm_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult) 
+
+   WsfGeoPoint sender_pt = aXmtr.Platform().Location();
+   if (sender_pt.HeightAboveEllipsoid() <= 0)
+   {
+      sender_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   WsfGeoPoint rcvr_pt = aRcvr.Platform().Location();
+   if (rcvr_pt.HeightAboveEllipsoid() <= 0)
+   {
+      rcvr_pt.OffsetNED(0, 0, heightOffset);
+   }
+   
+   double rng;
+   if (WsfTerrain.MaskedByTerrain(sender_pt, rcvr_pt, 1))
+   {
+      rng = sender_pt.GroundRangeTo(rcvr_pt);
+   }
+   else
+   {
+      rng = sender_pt.SlantRangeTo(rcvr_pt);
+   }
+   
+   Array<string> dataRow = {
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      "MESSAGE_RECEIVED",
+      (string)aMsg.SerialNumber(),
+      aMsg.Originator(),
+      aMsg.Type(),
+      (string)aMsg.SizeInBytes(),
+      (string)aMsg.Priority(),
+      (string)aMsg.DataTag(),
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      emptyData,
+      aXmtr.Platform().Name(),
+      aXmtr.Platform().Side(),
+      aXmtr.Platform().Type(),
+      aXmtr.Platform().BaseType(),
+      (string)sender_pt.X(),
+      (string)sender_pt.Y(),  
+      (string)sender_pt.Z(),
+      (string)sender_pt.Latitude(),
+      (string)sender_pt.Longitude(),
+      (string)sender_pt.HeightAboveEllipsoid(),
+      aXmtr.Name(),
+      aXmtr.Type(),
+      aXmtr.BaseType(),
+      aRcvr.Platform().Name(),
+      aRcvr.Platform().Side(),
+      aRcvr.Platform().Type(),
+      aRcvr.Platform().BaseType(),
+      (string)rcvr_pt.X(),
+      (string)rcvr_pt.Y(),  
+      (string)rcvr_pt.Z(),
+      (string)rcvr_pt.Latitude(),
+      (string)rcvr_pt.Longitude(),
+      (string)rcvr_pt.HeightAboveEllipsoid(),
+      aRcvr.Name(),
+      aRcvr.Type(),
+      aRcvr.BaseType(),
+      (string)rng,
+      (string)aResult.Succeeded(),
+      (string)aResult.Failed(),
+      aResult.FailedStatus(),
+      emptyData
+   };
+
+   if (commFileOpened)
+   {
+      commFile.Writeln(",".Join(dataRow));
+   }
+end_script
+
+script void comm_MessageTransmitted(WsfComm aComm, WsfMessage aMsg)
+ 
+   RecordTransmitMessages("MESSAGE_TRANSMITTED", aComm, aMsg);
+
+end_script
+
+script void comm_MessageTransmittedHeartbeat(WsfComm aComm, WsfMessage aMsg) 
+
+   RecordTransmitMessages("MESSAGE_TRANSMITTED_HEARTBEAT", aComm, aMsg);
+
+end_script
+
+
+script void comm_MessageTransmitEnded(WsfComm aComm, WsfMessage aMsg)
+ 
+   RecordTransmitMessages("MESSAGE_TRANSMIT_ENDED", aComm, aMsg);
+
+end_script

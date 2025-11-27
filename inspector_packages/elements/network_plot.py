@@ -1,7 +1,10 @@
+import time
 import sys
 import networkx as nx
 from inspector_packages import *
+from utils import cli_output
 
+import pdb
 
 class NetworkPlot:
 
@@ -34,23 +37,35 @@ class NetworkPlot:
       return self._figure_name
 
 
-   def generate_network_figure(self, frame, network_layout, empty_plot, queue_info):
+   def generate_network_figure(self, comm_df, track_df, platform_df, network_layout, empty_plot, queue_info):
 
-      node_positions = self._get_network_layout(frame, network_layout)
+      node_positions, comm_edges, track_edges = self._get_network_layout(comm_df, track_df, network_layout)
 
       node_x, node_y, node_text, nodes_visited = {}, {}, {}, []
       nodes_traces, edge_traces, directions, queue_items = [], [], [], []
-      two_way_transmissions = []
-      for transmission, group in frame.groupby(["Sender_Name", "Receiver_Name"]):
+      one_way_transmissions, two_way_transmissions = [], []
+      for transmission, group in comm_df.groupby(["Sender_Name", "Receiver_Name"]):
 
          sender, receiver = transmission[0], transmission[1]
          sender_type = group["Sender_Type"].iloc[0]
          receiver_type = group["Receiver_Type"].iloc[0]
 
-         self._set_node_info(node_x, node_y, node_text, node_positions, nodes_visited, sender, sender_type)
-         self._set_node_info(node_x, node_y, node_text, node_positions, nodes_visited, receiver, receiver_type)
+         sender_track_info = track_df[track_df["Owning_Platform"] == sender].tail(1) if track_df is not None else None
+         rcvr_track_info = track_df[track_df["Owning_Platform"] == receiver].tail(1) if track_df is not None else None
 
-         two_way = frame[(frame["Sender_Name"] == receiver) & (frame["Receiver_Name"] == sender)]
+         self._set_node_info(
+            node_x, node_y, 
+            node_text, node_positions, 
+            nodes_visited, 
+            sender, sender_type, sender_track_info)
+
+         self._set_node_info(
+            node_x, node_y, 
+            node_text, node_positions, 
+            nodes_visited, 
+            receiver, receiver_type, rcvr_track_info)
+
+         two_way = comm_df[(comm_df["Sender_Name"] == receiver) & (comm_df["Receiver_Name"] == sender)]
          if not two_way.empty:
             if (sender, receiver) not in two_way_transmissions and (receiver, sender) not in two_way_transmissions:
                two_way_transmissions.append((sender, receiver))
@@ -59,10 +74,72 @@ class NetworkPlot:
          edge_width = self._get_edge_width(group.shape[0])
          arrow_text = self._get_arrow_text(group)
 
-         edge_traces.append(self._add_edge(node_positions[sender], node_positions[receiver], edge_width))
-         directions.append(self._add_direction(node_positions[sender], node_positions[receiver], [arrow_text, arrow_text]))
+         edge_traces.append(self._add_edge(node_positions[sender], node_positions[receiver], edge_width, "comm"))
+         directions.append(self._add_direction(node_positions[sender], node_positions[receiver], [arrow_text, arrow_text], "comm"))
+         one_way_transmissions.append((sender, receiver))
 
-      two_way_pts = self._handle_two_way_transmissions(frame, node_positions, two_way_transmissions, edge_traces, directions)
+      two_way_pts = self._handle_two_way_transmissions(comm_df, node_positions, two_way_transmissions, edge_traces, directions)
+
+      two_way_tracks = []
+      for track_pair in track_edges:
+
+         contributor, owning_platform = track_pair
+         two_way_track = (owning_platform, contributor) in track_edges
+         if two_way_track:
+            rcvr_info = track_df[track_df["Owning_Platform"] == owning_platform].tail(1)
+            rcvr_type = rcvr_info["Platform_Type"].iloc[0]
+            self._set_node_info(
+               node_x, node_y, 
+               node_text, node_positions, 
+               nodes_visited, 
+               owning_platform, rcvr_type, rcvr_info)
+            two_way_tracks.append(track_pair)
+            continue
+
+         one_way_comm = False
+         for sender, receiver in one_way_transmissions:
+            if sender in track_pair and receiver in track_pair:
+               one_way_comm = True
+               break
+
+         if one_way_comm: # there is already a comm edge between nodes
+            pos1 = node_positions[contributor]
+            pos2 = node_positions[owning_platform]
+            center, _ = self._find_normal_vectors(pos1, pos2, scale=2)
+            contributor_to_rcvr = self._find_points_on_curve(pos1, pos2, center)
+            two_way_pts.extend(contributor_to_rcvr)
+
+            for i in range(len(contributor_to_rcvr)-1):
+               edge_traces.append(self._add_edge(contributor_to_rcvr[i], contributor_to_rcvr[i+1], 3, "track"))
+               directions.append(self._add_direction(contributor_to_rcvr[i], contributor_to_rcvr[i+1], ["TRACK INFO" + "<extra></extra>"] * 2, "track"))
+            edge_traces.append(self._add_edge(contributor_to_rcvr[-1], pos2, 3, "track"))
+         else: # two-way comm or no comm edges
+
+            try:
+               contributor_info = platform_df[platform_df["Platform_Name"] == contributor].iloc[0]
+               rcvr_info = track_df[track_df["Owning_Platform"] == owning_platform].tail(1)
+               contributor_type = contributor_info["Platform_Type"]
+               rcvr_type = rcvr_info["Platform_Type"].iloc[0]
+
+               self._set_node_info(
+                  node_x, node_y, 
+                  node_text, node_positions, 
+                  nodes_visited, 
+                  contributor, contributor_type, None)
+
+               self._set_node_info(
+                  node_x, node_y, 
+                  node_text, node_positions, 
+                  nodes_visited, 
+                  owning_platform, rcvr_type, rcvr_info)
+
+               edge_traces.append(self._add_edge(node_positions[contributor], node_positions[owning_platform], 3, "track"))
+               directions.append(self._add_direction(node_positions[contributor], node_positions[owning_platform], ["TRACK INFO" + "<extra></extra>"] * 2, "track"))
+
+            except IndexError as e:
+               cli_output.WARNING(f"{self.__class__.__name__}: {contributor} does not exist at time {platform_df['ISODate'].iloc[0]}")
+
+      two_way_track_pts = self._handle_two_way_tracks(track_df, node_positions, two_way_tracks, edge_traces, directions)
 
       for platform_type in node_x:
          nodes_traces.append(self._add_node(
@@ -72,19 +149,22 @@ class NetworkPlot:
             node_text[platform_type]))
 
       if queue_info is not None:
-         self._add_queues(queue_info, frame, node_positions, two_way_pts, queue_items)
+         self._add_queues(queue_info, comm_df, node_positions, two_way_pts, queue_items)
 
       fig =  go.Figure({"data": nodes_traces + edge_traces + directions + queue_items, "layout": empty_plot})
 
       return fig
          
 
-   def _get_network_layout(self, frame, network_layout):
+   def _get_network_layout(self, comm_df, track_df, network_layout):
 
-      transmissions = frame[["Sender_Name", "Receiver_Name"]].drop_duplicates()
-      edges = [(row["Sender_Name"], row["Receiver_Name"]) for _, row in transmissions.iterrows()]
+      transmissions = comm_df[["Sender_Name", "Receiver_Name"]].drop_duplicates()
+      comm_edges = [(row["Sender_Name"], row["Receiver_Name"]) for _, row in transmissions.iterrows()]
+
+      track_edges = self._get_track_edges(track_df) if track_df is not None else []
+
       G = nx.Graph()
-      G.add_edges_from(edges)
+      G.add_edges_from(comm_edges + track_edges)
 
       if network_layout == "Spring":
          node_positions = nx.spring_layout(G)
@@ -97,7 +177,7 @@ class NetworkPlot:
       elif network_layout == "Random":
          node_positions = nx.random_layout(G)
 
-      return node_positions
+      return node_positions, comm_edges, track_edges
 
 
    def _get_edge_width(self, num):
@@ -123,11 +203,11 @@ class NetworkPlot:
       return arrow_text
 
 
-   def _add_edge(self, start, end, edge_width):
+   def _add_edge(self, start, end, edge_width, edge_type):
 
       edge = {
          "type": "scatter",
-         "name": "edge",
+         "name": f"{edge_type}_edge",
          "x": [start[0], end[0]],
          "y": [start[1], end[1]],
          "mode": "lines",
@@ -136,7 +216,8 @@ class NetworkPlot:
          "line": 
          {
             "width": edge_width,
-            "color": "black"
+            "dash": "solid" if edge_type == "comm" else "dot",
+            "color": "black" if edge_type == "comm" else "#CD5C5C"
          },
          "showlegend": False
       }
@@ -144,14 +225,14 @@ class NetworkPlot:
       return edge
 
    
-   def _add_direction(self, start, end, text):
+   def _add_direction(self, start, end, text, edge_type):
 
       arrow_start = start + 0.25 * (end - start)
       arrow_end = start + 0.75 * (end - start)
 
       direction = {
          "type": "scatter",
-         "name": "network",
+         "name": f"{edge_type}_edge",
          "x": [arrow_start[0], arrow_end[0]], 
          "y": [arrow_start[1], arrow_end[1]],
          "mode": "markers",
@@ -161,7 +242,7 @@ class NetworkPlot:
          "marker":
          {
             "size": 15,
-            "color": "black",
+            "color": "black" if edge_type == "comm" else "#CD5C5C",
             "symbol": "arrow-up",
             "angleref": "previous"
          },
@@ -191,17 +272,23 @@ class NetworkPlot:
       return node
 
    
-   def _set_node_info(self, node_x, node_y, node_text, node_positions, nodes_visited, node_name, node_type):
+   def _set_node_info(self, node_x, node_y, node_text, node_positions, nodes_visited, node_name, node_type, track_info):
 
       if node_name not in nodes_visited:
          if node_type not in node_x:
             node_x[node_type] = []
             node_y[node_type] = []
             node_text[node_type] = []
+
          pos = node_positions[node_name]
          node_x[node_type].append(pos[0])
          node_y[node_type].append(pos[1])
-         node_text[node_type].append(f"{node_name}" + "<extra></extra>")
+         txt = f"{node_name}<br>"
+         if track_info is not None and not track_info.empty:
+            track_count = track_info["Track_List_Count"].iloc[0]
+            txt += f"Track Count: {track_count}<br>"
+         txt += "<extra></extra>"
+         node_text[node_type].append(txt)
          nodes_visited.append(node_name)
 
 
@@ -226,16 +313,51 @@ class NetworkPlot:
          two_way_pts.extend(rcvr_to_sender)
 
          for i in range(len(sender_to_rcvr)-1):
-            edge_traces.append(self._add_edge(sender_to_rcvr[i], sender_to_rcvr[i+1], edge_width1))
-            directions.append(self._add_direction(sender_to_rcvr[i], sender_to_rcvr[i+1], [arrow_text1, arrow_text1]))
-         edge_traces.append(self._add_edge(sender_to_rcvr[-1], pos2, edge_width1))
+            edge_traces.append(self._add_edge(sender_to_rcvr[i], sender_to_rcvr[i+1], edge_width1, "comm"))
+            directions.append(self._add_direction(sender_to_rcvr[i], sender_to_rcvr[i+1], [arrow_text1, arrow_text1], "comm"))
+         edge_traces.append(self._add_edge(sender_to_rcvr[-1], pos2, edge_width1, "comm"))
 
          for i in range(len(rcvr_to_sender)-1):
-            edge_traces.append(self._add_edge(rcvr_to_sender[i], rcvr_to_sender[i+1], edge_width2))
-            directions.append(self._add_direction(rcvr_to_sender[i], rcvr_to_sender[i+1], [arrow_text2, arrow_text2]))
-         edge_traces.append(self._add_edge(rcvr_to_sender[-1], pos1, edge_width2))
+            edge_traces.append(self._add_edge(rcvr_to_sender[i], rcvr_to_sender[i+1], edge_width2, "comm"))
+            directions.append(self._add_direction(rcvr_to_sender[i], rcvr_to_sender[i+1], [arrow_text2, arrow_text2], "comm"))
+         edge_traces.append(self._add_edge(rcvr_to_sender[-1], pos1, edge_width2, "comm"))
 
       return two_way_pts
+
+
+   def _handle_two_way_tracks(self, frame, node_positions, two_way_tracks, edge_traces, directions):
+
+      if len(two_way_tracks) >= 1:
+         cli_output.INFO(f"{self.__class__.__name__}: NUMBER OF TWO WAY TRACKS {len(two_way_tracks)}")
+
+      two_way_pts = []
+      for contributor, owning_platform in two_way_tracks:
+
+         if contributor != owning_platform:
+            pos1 = node_positions[contributor]
+            pos2 = node_positions[owning_platform]
+            center1, center2 = self._find_normal_vectors(pos1, pos2, scale=2)
+            sender_to_rcvr = self._find_points_on_curve(pos1, pos2, center1)
+            rcvr_to_sender = self._find_points_on_curve(pos2, pos1, center2)
+            two_way_pts.extend(sender_to_rcvr)
+            two_way_pts.extend(rcvr_to_sender)
+
+            for i in range(len(sender_to_rcvr)-1):
+               edge_traces.append(self._add_edge(sender_to_rcvr[i], sender_to_rcvr[i+1], 3, "track"))
+               directions.append(self._add_direction(sender_to_rcvr[i], sender_to_rcvr[i+1], ["TRACK INFO" + "<extra></extra>"] * 2, "track"))
+
+            edge_traces.append(self._add_edge(sender_to_rcvr[-1], pos2, 3, "track"))
+
+            for i in range(len(rcvr_to_sender)-1):
+               edge_traces.append(self._add_edge(rcvr_to_sender[i], rcvr_to_sender[i+1], 3, "track"))
+               directions.append(self._add_direction(rcvr_to_sender[i], rcvr_to_sender[i+1], ["TRACK INFO" + "<extra></extra>"] * 2, "track"))
+            edge_traces.append(self._add_edge(rcvr_to_sender[-1], pos1, 3, "track"))
+
+         else:
+            cli_output.INFO(f"{self.__class__.__name__}: {contributor} contributes track to its own list.")
+
+      return two_way_pts
+
 
    def _add_queues(self, queue_info, frame, node_positions, two_way_pts, queue_items):
 
@@ -329,13 +451,13 @@ class NetworkPlot:
       return (min_x, max_x, min_y, max_y)
 
 
-   def _find_normal_vectors(self, pos1, pos2):
+   def _find_normal_vectors(self, pos1, pos2, scale=1):
 
       diff = pos2 - pos1
       halfway = pos1 + 0.5 * diff
       dx, dy = diff[0], diff[1]
-      normal1 = np.array([-dy, dx]) + halfway
-      normal2 = np.array([dy, -dx]) + halfway
+      normal1 = scale * np.array([-dy, dx]) + halfway
+      normal2 = scale * np.array([dy, -dx]) + halfway
 
       return (normal1, normal2)
 
@@ -358,3 +480,25 @@ class NetworkPlot:
          points.append(np.array([x, y]))
 
       return points
+
+
+   def _get_track_edges(self, track_df):
+
+      track_edges = []
+      for platform, grp in track_df.groupby("Owning_Platform"):
+         recent_track_info = grp.tail(1)
+         master_track_list = recent_track_info["Master_Track_List"].iloc[0].strip().split(" ")
+         if recent_track_info["Event_Type"].iloc[0] == "LOCAL_TRACK_DROPPED":
+            dropped_track = recent_track_info["Track_ID"].iloc[0]
+            time_dropped = recent_track_info["ISODate"].iloc[0]
+            master_track_list.remove(dropped_track)
+            cli_output.INFO(f"{self.__class__.__name__}: {dropped_track} dropped at {time_dropped}.")
+         for local_track in master_track_list:
+            track_grp = grp[grp["Track_ID"] == local_track].tail(1)
+            raw_track_list = track_grp["Raw_Tracks"].iloc[0].strip().split(" ")
+            for raw_track in raw_track_list:
+               contributor_name = raw_track.split(".")[0]
+               if contributor_name != "no_tracks":
+                  track_edges.append((contributor_name, platform))
+      
+      return track_edges

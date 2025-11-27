@@ -6,14 +6,14 @@ from dash import dcc, html, Dash
 class DashLayout:
 
    def __init__(self, 
-      df, 
+      data, 
       timestamps, 
       classification, 
       network_plot_name,
       cesium_config=None,
       use_cesium=False):
 
-      self._df = df
+      self._data = data
       self._timestamps = timestamps
       self._classification = classification
       self._network_plot_name = network_plot_name
@@ -88,7 +88,7 @@ class DashLayout:
          self._create_dropdown("Network Layout", NETWORK_LAYOUT, network_options, False, None, "Spring", False),
       ], title="Network Options")
 
-      return network_dropdowns
+      return [network_dropdowns, self._create_button_group(QUEUE_INFO_TOGGLE, "Display Queue Info", is_option=True)]
 
 
    def _set_dash_layout(self):
@@ -107,7 +107,7 @@ class DashLayout:
             ),
             dcc.Store(id=FILTER_MEMORY),
             dcc.Store(id=DISPLAY_MEMORY),
-            *self._add_cesium_elements(),
+            *self._add_cesium_elements()
          ],
          target_components={MAIN_DISPLAY: "children"},
       )
@@ -120,6 +120,7 @@ class DashLayout:
          dcc.Store(id=CESIUM_CAMERA),
          dcc.Store(id=CESIUM_EXTERNAL),
          dcc.Store(id=CESIUM_INTERNAL),
+         dcc.Store(id=CESIUM_TRACKS),
          html.Div(
             id="tooltip",
             style={
@@ -173,7 +174,7 @@ class DashLayout:
                self._create_dropdown("Plots", PLOT_OPTIONS, ["Bar Plot", "Network Plot"], False, False, "Bar Plot", False),
                self._create_plots_area(),
                self._create_time_label(),
-               self._create_button_group()
+               self._create_button_group(RADIOS, "Connect to Time Slider")
             ], width=6)
       ])
 
@@ -190,7 +191,7 @@ class DashLayout:
             'zIndex': '5'
          },
          children=[
-            dbc.Col(self._create_filter_options(), width=6),
+            dbc.Col([self._create_comm_filter_options(), self._create_track_filter_options()], width=6),
             dbc.Col(self._create_plot_filters(), width=6),
          ]
       )
@@ -305,23 +306,18 @@ class DashLayout:
       return time_label
 
 
-   def _create_button_group(self):
+   def _create_button_group(self, ID, label_text, is_option=False):
 
       button_group = html.Div(
-         style={
-            'textAlign': 'center',
-            'paddingTop': '20px'
-         },
          children=[
-            dbc.Row(html.Label("Connect to Time Slider")),
+            dbc.Row(html.Label(
+               label_text, 
+               className="radio-label" if is_option else None)),
             dbc.Row(
-               style={
-                  'textAlign': 'center'
-               },
                children=[
                   html.Div(
                      dbc.RadioItems(
-                     id=RADIOS,
+                     id=ID,
                      className="btn-group",
                      inputClassName="btn-check",
                      labelClassName="btn btn-outline-primary",
@@ -335,35 +331,47 @@ class DashLayout:
                )]
             )
          ],
-         className="radio-group"
+         className=f"radio-group {'radio-option' if is_option else ''}"
       )
 
       return button_group
 
 
-   def _create_filter_options(self):
+   def _create_comm_filter_options(self):
 
       filter_options = dbc.Accordion(
          children=[dbc.AccordionItem([
-            self._create_dropdown("Event Type", EVENT_TYPE, self._df["Event_Type"].unique(), True, "All Events"),
-            self._create_dropdown("Message Serial Number", MSG_SERIAL_NUMBER, self._df["Message_SerialNumber"].unique(), True, "All Serial Numbers"),
-            self._create_dropdown("Message Originator", MSG_ORIGINATOR, self._df["Message_Originator"].unique(), True, "All Originators"),
-            self._create_dropdown("Message Type", MSG_TYPE, self._df["Message_Type"].unique(), True, "All Message Types"),
-            self._create_dropdown("Sender", SENDER_NAME, self._df["Sender_Name"].unique(), True, "All Senders"),
-            self._create_dropdown("Sender Side", SENDER_SIDE, self._df["Sender_Side"].unique(), True, "All Sides"),
-            self._create_dropdown("Sender Type", SENDER_TYPE, self._df["Sender_Type"].unique(), True, "All Sender Types"),
-            self._create_dropdown("Sender BaseType", SENDER_BASETYPE, self._df["Sender_BaseType"].unique(), True, "All Sender BaseTypes"),
-            self._create_dropdown("Sender Part", SENDER_PART, self._df["SenderPart_Name"].unique(), True, "All Sender Parts"),
-            self._create_dropdown("Sender Part Type", SENDER_PART_TYPE, self._df["SenderPart_Type"].unique(), True, "All Sender Part Types"),
-            self._create_dropdown("Sender Part BaseType", SENDER_PART_BASETYPE, self._df["SenderPart_BaseType"].unique(), True, "All Sender Part BaseTypes"),
-            self._create_dropdown("Receiver", RECEIVER_NAME, self._df["Receiver_Name"].unique(), True, "All Receivers"),
-            self._create_dropdown("Receiver Side", RECEIVER_SIDE, self._df["Receiver_Side"].unique(), True, "All Sides"),
-            self._create_dropdown("Receiver Type", RECEIVER_TYPE, self._df["Receiver_Type"].unique(), True, "All Receiver Types"),
-            self._create_dropdown("Receiver BaseType", RECEIVER_BASETYPE, self._df["Receiver_BaseType"].unique(), True, "All Receiver BaseTypes"),
-            self._create_dropdown("Receiver Part", RECEIVER_PART, self._df["ReceiverPart_Name"].unique(), True, "All Receiver Parts"),
-            self._create_dropdown("Receiver Part Type", RECEIVER_PART_TYPE, self._df["ReceiverPart_Type"].unique(), True, "All Receiver Part Types"),
-            self._create_dropdown("Receiver Part BaseType", RECEIVER_PART_BASETYPE, self._df["ReceiverPart_BaseType"].unique(), True, "All Receiver Part BaseTypes"),
-            ], title="Filter Options")],
+            self._create_dropdown("Event Type", EVENT_TYPE, self._data["comm"]["Event_Type"].unique(), True, "All Events"),
+            self._create_dropdown("Message Serial Number", MSG_SERIAL_NUMBER, self._data["comm"]["Message_SerialNumber"].unique(), True, "All Serial Numbers"),
+            self._create_dropdown("Message Originator", MSG_ORIGINATOR, self._data["comm"]["Message_Originator"].unique(), True, "All Originators"),
+            self._create_dropdown("Message Type", MSG_TYPE, self._data["comm"]["Message_Type"].unique(), True, "All Message Types"),
+            self._create_dropdown("Sender", SENDER_NAME, self._data["comm"]["Sender_Name"].unique(), True, "All Senders"),
+            self._create_dropdown("Sender Side", SENDER_SIDE, self._data["comm"]["Sender_Side"].unique(), True, "All Sides"),
+            self._create_dropdown("Sender Type", SENDER_TYPE, self._data["comm"]["Sender_Type"].unique(), True, "All Sender Types"),
+            self._create_dropdown("Sender BaseType", SENDER_BASETYPE, self._data["comm"]["Sender_BaseType"].unique(), True, "All Sender BaseTypes"),
+            self._create_dropdown("Sender Part", SENDER_PART, self._data["comm"]["SenderPart_Name"].unique(), True, "All Sender Parts"),
+            self._create_dropdown("Sender Part Type", SENDER_PART_TYPE, self._data["comm"]["SenderPart_Type"].unique(), True, "All Sender Part Types"),
+            self._create_dropdown("Sender Part BaseType", SENDER_PART_BASETYPE, self._data["comm"]["SenderPart_BaseType"].unique(), True, "All Sender Part BaseTypes"),
+            self._create_dropdown("Receiver", RECEIVER_NAME, self._data["comm"]["Receiver_Name"].unique(), True, "All Receivers"),
+            self._create_dropdown("Receiver Side", RECEIVER_SIDE, self._data["comm"]["Receiver_Side"].unique(), True, "All Sides"),
+            self._create_dropdown("Receiver Type", RECEIVER_TYPE, self._data["comm"]["Receiver_Type"].unique(), True, "All Receiver Types"),
+            self._create_dropdown("Receiver BaseType", RECEIVER_BASETYPE, self._data["comm"]["Receiver_BaseType"].unique(), True, "All Receiver BaseTypes"),
+            self._create_dropdown("Receiver Part", RECEIVER_PART, self._data["comm"]["ReceiverPart_Name"].unique(), True, "All Receiver Parts"),
+            self._create_dropdown("Receiver Part Type", RECEIVER_PART_TYPE, self._data["comm"]["ReceiverPart_Type"].unique(), True, "All Receiver Part Types"),
+            self._create_dropdown("Receiver Part BaseType", RECEIVER_PART_BASETYPE, self._data["comm"]["ReceiverPart_BaseType"].unique(), True, "All Receiver Part BaseTypes"),
+            ], title="Comm Filter Options")],
+            start_collapsed=True
+         )
+
+      return filter_options
+
+   def _create_track_filter_options(self):
+
+      filter_options = dbc.Accordion(
+         children=[dbc.AccordionItem([
+            self._create_dropdown("Owning Platform", OWNING_PLATFORM, self._data["track"]["Owning_Platform"].unique(), True, "All Platforms"),
+            self._create_dropdown("Owning Platform Type", OWNING_PLATFORM_TYPE, self._data["track"]["Platform_Type"].unique(), True, "All Platform Types"),
+            ], title="Track Filter Options")],
             start_collapsed=True
          )
 

@@ -1,0 +1,34 @@
+script_variables
+
+   FileIO platformFile = FileIO();
+   string platformFileName = "platform_status.csv";
+   bool platformFileOpened = false;
+   
+   Array<string> platformColumnNames = {
+      "ISODate",
+      "Platform_Name",
+      "Platform_Type",
+      "Location_X",
+      "Location_Y",
+      "Location_Z"
+   }; 
+end_script_variables
+
+execute at_interval_of 1 sec
+   if (platformFileOpened)
+   {
+      for (int i = 0; i < WsfSimulation.PlatformCount(); i+=1)
+      {
+         WsfPlatform p = WsfSimulation.PlatformEntry(i);
+         Array<string> pRow = {
+            WsfDateTime.CurrentTime().ToStringIso8601(),
+            p.Name(),
+            p.Type(),
+            (string)p.X(),
+            (string)p.Y(),
+            (string)p.Z()
+         };      
+         platformFile.Writeln(",".Join(pRow));
+      }
+   }
+end_execute
