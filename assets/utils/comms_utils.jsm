@@ -209,7 +209,7 @@ export const ExternalCommsUtils = {
       }
    },
 
-   transmissionText : function(transmission, current_time, info)
+   transmissionText : function(transmission, info)
    {
 
       const indices = Object.keys(info["Sender_Name"]);
@@ -218,13 +218,13 @@ export const ExternalCommsUtils = {
       let transmission_result = "SUCCESS";
       let transmission_num = 0;
       let transmission_info = '';
-      transmission_info = `Time (H:M:S): ${current_time}<br>`;
-      transmission_info += `Sender: ${sender} >> Receiver: ${receiver}<br>`;
       for (let i = 0; i < indices.length; i++)
       {
          transmission_num += 1;
          transmission_info += `
          <b>${transmission_num}. Event Type: ${info["Event_Type"][indices[i]]}</b><br>
+         &nbsp;&nbsp;&nbsp;&nbsp;<b>Sender: ${sender} >> Receiver: ${receiver}</b><br>
+         &nbsp;&nbsp;&nbsp;&nbsp;Simulation Time: ${info["SimulationTime"][indices[i]]}<br>
          &nbsp;&nbsp;&nbsp;&nbsp;Platform Parts: ${sender_part} >> ${receiver_part}<br>
          &nbsp;&nbsp;&nbsp;&nbsp;Message Type: ${info["Message_Type"][indices[i]]}<br>
          &nbsp;&nbsp;&nbsp;&nbsp;Message Number: ${info["Message_SerialNumber"][indices[i]]}<br>
@@ -278,19 +278,19 @@ export const InternalCommsUtils = {
       }
    },
 
-   internalTransmissionText : function(platform, current_time, info)
+   internalTransmissionText : function(platform, info)
    {         
       const indices = Object.keys(info["Sender_Name"]);
 
       let transmission_num = 0;
       let transmission_info = '';
-      transmission_info = `Time (H:M:S): ${current_time}<br>`;
-      transmission_info += `Platform: ${platform}<br>`; 
       for (let i = 0; i < indices.length; i++)
       {
          transmission_num += 1;
          transmission_info += `
          <b>${transmission_num}. Event Type: ${info["Event_Type"][indices[i]]}</b><br>
+         &nbsp;&nbsp;&nbsp;&nbsp;<b>Platform: ${platform}</b><br> 
+         &nbsp;&nbsp;&nbsp;&nbsp;Simulation Time: ${info["SimulationTime"][indices[i]]}<br>
          &nbsp;&nbsp;&nbsp;&nbsp;Platform Parts: ${info["SenderPart_Name"][indices[i]]} >> ${info["ReceiverPart_Name"][indices[i]]}<br>
          &nbsp;&nbsp;&nbsp;&nbsp;Message Type: ${info["Message_Type"][indices[i]]}<br>
          &nbsp;&nbsp;&nbsp;&nbsp;Message Number: ${info["Message_SerialNumber"][indices[i]]}<br>

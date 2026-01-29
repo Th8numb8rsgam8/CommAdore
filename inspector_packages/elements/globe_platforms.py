@@ -1,76 +1,86 @@
 import pandas as pd
-from datetime import datetime, timezone
 from utils import cli_output
+from ..mission_execution import *
 
 
 class GlobePlatforms:
 
-   def __init__(self, df):
+   def __init__(self, db):
 
-      self._df = df
+      self._db = db 
+      self._cursor = self._db.cursor()
 
    def get_platform_states(self, time_val):
 
-      time_diff = self._df["Timestamp"] - time_val
-      time_states = time_diff <= 0
-      prev = time_states[time_states == True].index
-      next = time_states[time_states == False].index
+      prev_time = self._cursor.execute(f'''
+         SELECT {SharedColumns.SIMULATION_TIME}
+         FROM {PLATFORM_DATA_TABLE}
+         WHERE {SharedColumns.SIMULATION_TIME} <= {time_val}
+         ORDER BY {SharedColumns.SIMULATION_TIME} DESC LIMIT 1
+         ''').fetchone()
 
-      if not prev.empty and not next.empty:
-         prev_idx = time_diff[time_diff == time_diff[prev].max()].index
-         next_idx = time_diff[time_diff == time_diff[next].min()].index
-         prev_df = self._df.iloc[prev_idx].reset_index(drop=True)
-         next_df = self._df.iloc[next_idx].reset_index(drop=True)
+      next_time = self._cursor.execute(f'''
+         SELECT {SharedColumns.SIMULATION_TIME}
+         FROM {PLATFORM_DATA_TABLE}
+         WHERE {SharedColumns.SIMULATION_TIME} > {time_val}
+         ORDER BY {SharedColumns.SIMULATION_TIME} ASC LIMIT 1
+         ''').fetchone()
+
+      if prev_time is not None and next_time is not None:
+         prev_df = self._retrieve_data(prev_time[0])
+         next_df = self._retrieve_data(next_time[0])
          interpolated_df = self._interpolate_platform_states(prev_df, next_df, time_val)
          return interpolated_df
 
-      elif prev.empty and not next.empty:
-         next_idx = time_diff[time_diff == time_diff[next].min()].index
-         next_df = self._df.iloc[next_idx]
-         return next_df
+      elif prev_time is None and next_time is not None:
+         return self._retrieve_data(next_time[0])
 
-      elif not prev.empty and next.empty:
-         prev_idx = time_diff[time_diff == time_diff[prev].max()].index
-         prev_df = self._df.iloc[prev_idx]
-         return prev_df
+      elif prev_time is not None and next_time is None:
+         return self._retrieve_data(prev_time[0])
 
       else:
-         cli_output.WARNING(f"No platform state was returned for {time_val}.")
+         cli_output.WARNING(f"{self.__class__.__name__}: No platform state was returned for {time_val}.")
          return None
 
+   def _retrieve_data(self, time_val):
+      df = pd.read_sql_query(
+         sql=f'''
+         SELECT * FROM {PLATFORM_DATA_TABLE}
+         WHERE {SharedColumns.SIMULATION_TIME} = {time_val}
+         ''', 
+         con=self._db, 
+         index_col=PlatformDataColumns.PLATFORM_NAME)\
+         .astype(PANDAS_PLATFORM_DATA_TYPES)
+      return df
 
    def _interpolate_platform_states(self, prev_df, next_df, time_val):
 
       if prev_df.shape[0] != next_df.shape[0]:
-         s1 = prev_df["Platform_Name"]
-         s2 = next_df["Platform_Name"]
-         prev_not_next = s1[~s1.isin(s2)]
-         next_not_prev = s2[~s2.isin(s1)]
+         prev_not_next = prev_df.index.difference(next_df.index)
+         next_not_prev = next_df.index.difference(prev_df.index)
 
-         prev_iso = prev_df["ISODate"].unique()[0]
-         next_iso = next_df["ISODate"].unique()[0]
+         prev_iso = prev_df[SharedColumns.ISO_DATE].unique()[0]
+         next_iso = next_df[SharedColumns.ISO_DATE].unique()[0]
          if not prev_not_next.empty:
             platforms = " ".join(prev_not_next.to_list())
-            cli_output.WARNING(f"Platforms removed between {prev_iso} and {next_iso}: {platforms}")
-            prev_df = prev_df[~prev_df["Platform_Name"].isin(prev_not_next)].reset_index(drop=True)
+            cli_output.WARNING(f"{self.__class__.__name__}: Platforms removed between {prev_iso} and {next_iso}: {platforms}")
+            prev_df = prev_df[~prev_df.index.isin(prev_not_next)]
 
          if not next_not_prev.empty:
             platforms = " ".join(next_not_prev.to_list())
-            cli_output.WARNING(f"Platforms added between {prev_iso} and {next_iso}: {platforms}")
-            next_df = next_df[~next_df["Platform_Name"].isin(next_not_prev)].reset_index(drop=True)
+            cli_output.WARNING(f"{self.__class__.__name__}: Platforms added between {prev_iso} and {next_iso}: {platforms}")
+            next_df = next_df[~next_df.index.isin(next_not_prev)]
 
       interpolated_df = prev_df
-      prev_time = prev_df["Timestamp"].unique()[0]
-      next_time = next_df["Timestamp"].unique()[0]
+      prev_time = prev_df[SharedColumns.SIMULATION_TIME].unique()[0]
+      next_time = next_df[SharedColumns.SIMULATION_TIME].unique()[0]
       delta = (time_val - prev_time) / (next_time - prev_time)
-      prev_pos = prev_df[["Location_X", "Location_Y", "Location_Z"]]
-      next_pos = next_df[["Location_X", "Location_Y", "Location_Z"]]
+      prev_pos = prev_df[[PlatformDataColumns.LOCATION_X, PlatformDataColumns.LOCATION_Y, PlatformDataColumns.LOCATION_Z]]
+      next_pos = next_df[[PlatformDataColumns.LOCATION_X, PlatformDataColumns.LOCATION_Y, PlatformDataColumns.LOCATION_Z]]
       current_pos = prev_pos + delta * (next_pos - prev_pos)
       current_time = prev_time + delta * (next_time - prev_time)
-      current_iso = datetime.fromtimestamp(current_time, tz=timezone.utc).isoformat()
 
-      interpolated_df["Timestamp"] = current_time
-      interpolated_df["ISODate"] = current_iso
-      interpolated_df[["Location_X", "Location_Y", "Location_Z"]] = current_pos
+      interpolated_df.loc[:, SharedColumns.SIMULATION_TIME] = current_time
+      interpolated_df.loc[:, [PlatformDataColumns.LOCATION_X, PlatformDataColumns.LOCATION_Y, PlatformDataColumns.LOCATION_Z]] = current_pos
 
       return interpolated_df

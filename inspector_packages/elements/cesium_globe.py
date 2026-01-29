@@ -8,6 +8,7 @@ from flask import make_response, request
 from dash import Input, Output, State, ClientsideFunction, get_asset_url
 from .globe_methods import GlobeMethods
 from utils import cli_output
+from ..mission_execution import *
 from ..dash_app import (
    CESIUM_CONFIG, 
    CESIUM_EXTERNAL, 
@@ -17,7 +18,6 @@ from ..dash_app import (
    GLOBE_GRAPH, 
    CESIUM_CAMERA)
 
-import pdb
 
 class CesiumJSGlobe:
 
@@ -31,8 +31,8 @@ class CesiumJSGlobe:
 
       self._add_cesium_feature(dash_app)
 
-   @staticmethod
-   def get_line_points(sender_name, sender_location, receiver_name, receiver_location, platform_range):
+   @classmethod
+   def get_line_points(cls, sender_name, sender_location, receiver_name, receiver_location, platform_range):
 
       interval = CesiumJSGlobe._get_arrow_interval(platform_range)
 
@@ -48,14 +48,14 @@ class CesiumJSGlobe:
             return GlobeMethods.get_points_on_line_segment(first_arrow, last_arrow, int(num_arrows) if num_arrows != 0 else 10)
 
       except UnboundLocalError as e:
-         cli_output.WARNING(f"No line from {sender_name} to {receiver_name}.")
+         cli_output.WARNING(f"{cls.__name__}: No line from {sender_name} to {receiver_name}.")
          return (
             [sender_location[0], receiver_location[0]],
             [sender_location[1], receiver_location[1]],
             [sender_location[2], receiver_location[2]])
       
       except TypeError as e:
-         cli_output.WARNING(f"No line from {sender_name} to {receiver_name}.")
+         cli_output.WARNING(f"{cls.__name__}: No line from {sender_name} to {receiver_name}.")
          return (
             [sender_location[0], receiver_location[0]],
             [sender_location[1], receiver_location[1]],
@@ -66,25 +66,31 @@ class CesiumJSGlobe:
    def get_track_details(cls, track_data, platform_data):
 
       track_details = {}
-      for platform, grp in track_data.groupby("Owning_Platform"):
+      for platform, grp in track_data.groupby(TrackDataColumns.OWNING_PLATFORM):
          track_details[platform] = {}
 
          recent_track_info = grp.tail(1)
-         receiver_location = recent_track_info[["PlatformLocation_X", "PlatformLocation_Y", "PlatformLocation_Z"]].iloc[0].to_numpy()
-         master_track_list = recent_track_info["Master_Track_List"].iloc[0].strip().split(" ")
-         current_time = datetime.utcfromtimestamp(recent_track_info["Timestamp"].iloc[0]).strftime("%H:%M:%S.%f")[:-3]
+         receiver_location = recent_track_info[
+            [TrackDataColumns.PLATFORMLOCATION_X, 
+             TrackDataColumns.PLATFORMLOCATION_Y, 
+             TrackDataColumns.PLATFORMLOCATION_Z]].iloc[0].to_numpy()
+         master_track_list = recent_track_info[TrackDataColumns.MASTER_TRACK_LIST].iloc[0].strip().split(" ")
+         current_time = recent_track_info[SharedColumns.SIMULATION_TIME].iloc[0]
          track_details[platform]["CurrentTime"] = current_time
          track_details[platform]["Location"] = [receiver_location[0], receiver_location[1], receiver_location[2]]
-         if recent_track_info["Event_Type"].iloc[0] == "LOCAL_TRACK_DROPPED":
-            dropped_track = recent_track_info["Track_ID"].iloc[0]
-            time_dropped = recent_track_info["ISODate"].iloc[0]
+         if recent_track_info[SharedColumns.EVENT_TYPE].iloc[0] == "LOCAL_TRACK_DROPPED":
+            dropped_track = recent_track_info[TrackDataColumns.TRACK_ID].iloc[0]
+            time_dropped = recent_track_info[SharedColumns.ISO_DATE].iloc[0]
             master_track_list.remove(dropped_track)
             cli_output.INFO(f"{cls.__name__}: {dropped_track} dropped at {time_dropped}.")
          
          track_details[platform]["LocalTracks"] = {}
          for local_track in master_track_list:
-            track_grp = grp[grp["Track_ID"] == local_track].tail(1)
-            target_location = track_grp[["TargetLocation_X", "TargetLocation_Y", "TargetLocation_Z"]].iloc[0].to_numpy()
+            track_grp = grp[grp[TrackDataColumns.TRACK_ID] == local_track].tail(1)
+            target_location = track_grp[
+               [TrackDataColumns.TARGETLOCATION_X, 
+                TrackDataColumns.TARGETLOCATION_Y, 
+                TrackDataColumns.TARGETLOCATION_Z]].iloc[0].to_numpy()
             platform_range = np.linalg.norm(receiver_location - target_location)
             x, y, z, = CesiumJSGlobe.get_line_points(
                platform, receiver_location,
@@ -94,19 +100,22 @@ class CesiumJSGlobe:
             track_details[platform]["LocalTracks"][local_track] = {
                "TargetLocation": [target_location[0], target_location[1], target_location[2]],
                "TargetLine": {"x": x, "y": y, "z": z},
-               "TimeSinceStarted": track_grp["Time_Since_Started"].iloc[0],
-               "TimeSinceUpdated": track_grp["Time_Since_Updated"].iloc[0],
-               "AltitudeKnown": bool(track_grp["Altitude_Known"].iloc[0]),
-               "IsStale": bool(track_grp["Is_Stale"].iloc[0]),
+               "TimeSinceStarted": track_grp[TrackDataColumns.TIME_SINCE_STARTED].iloc[0],
+               "TimeSinceUpdated": track_grp[TrackDataColumns.TIME_SINCE_UPDATED].iloc[0],
+               "AltitudeKnown": bool(track_grp[TrackDataColumns.ALTITUDE_KNOWN].iloc[0]),
+               "IsStale": bool(track_grp[TrackDataColumns.IS_STALE].iloc[0]),
                "Contributors": {}
             }
-            raw_track_list = track_grp["Raw_Tracks"].iloc[0].strip().split(" ")
+            raw_track_list = track_grp[TrackDataColumns.RAW_TRACKS].iloc[0].strip().split(" ")
             for raw_track in raw_track_list:
                contributor_name = raw_track.split(".")[0]
                if contributor_name != "no_tracks":
                   try:
-                     contributor_data = platform_data[platform_data["Platform_Name"] == contributor_name]
-                     contributor_location = contributor_data[["Location_X", "Location_Y", "Location_Z"]].iloc[0].to_numpy()
+                     contributor_data = platform_data.loc[contributor_name]
+                     contributor_location = contributor_data[
+                        [PlatformDataColumns.LOCATION_X, 
+                         PlatformDataColumns.LOCATION_Y, 
+                         PlatformDataColumns.LOCATION_Z]].to_numpy()
                      platform_range = np.linalg.norm(receiver_location - contributor_location)
                      x, y, z, = CesiumJSGlobe.get_line_points(
                         contributor_name, contributor_location,
@@ -117,8 +126,8 @@ class CesiumJSGlobe:
                         "Location": [contributor_location[0], contributor_location[1], contributor_location[2]],
                         "Line": {"x": x, "y": y, "z": z}
                      }
-                  except IndexError as e:
-                     cli_output.WARNING(f"{cls.__name__}: {contributor_name} does not exist at time {platform_data['ISODate'].iloc[0]}")
+                  except KeyError as e:
+                     cli_output.WARNING(f"{cls.__name__}: {contributor_name} does not exist at time {platform_data[SharedColumns.ISO_DATE].iloc[0]}")
 
       return track_details
 
@@ -126,16 +135,24 @@ class CesiumJSGlobe:
    def set_camera_view(internal_df, external_df):
 
       camera_zoom = GlobeMethods.EQUATOR_RADIUS * 3 
-      internal_pts = internal_df[["SenderLocation_X", "SenderLocation_Y", "SenderLocation_Z"]]
-      sender_pts = external_df[["SenderLocation_X", "SenderLocation_Y", "SenderLocation_Z"]]
-      rcvr_pts = external_df[["ReceiverLocation_X", "ReceiverLocation_Y", "ReceiverLocation_Z"]]
+      internal_pts = internal_df[
+         [CommDataColumns.SENDERLOCATION_X, 
+          CommDataColumns.SENDERLOCATION_Y, 
+          CommDataColumns.SENDERLOCATION_Z]]
+      sender_pts = external_df[
+         [CommDataColumns.SENDERLOCATION_X, 
+          CommDataColumns.SENDERLOCATION_Y, 
+          CommDataColumns.SENDERLOCATION_Z]]
+      rcvr_pts = external_df[
+         [CommDataColumns.RECEIVERLOCATION_X, 
+          CommDataColumns.RECEIVERLOCATION_Y, 
+          CommDataColumns.RECEIVERLOCATION_Z]]
       rcvr_pts = rcvr_pts.rename(columns=
-         {"ReceiverLocation_X": "SenderLocation_X",
-          "ReceiverLocation_Y": "SenderLocation_Y",
-          "ReceiverLocation_Z": "SenderLocation_Z"})
+         {CommDataColumns.RECEIVERLOCATION_X: CommDataColumns.SENDERLOCATION_X,
+          CommDataColumns.RECEIVERLOCATION_Y: CommDataColumns.SENDERLOCATION_Y,
+          CommDataColumns.RECEIVERLOCATION_Z: CommDataColumns.SENDERLOCATION_Z})
 
       points_df = pd.concat([internal_pts, sender_pts, rcvr_pts], ignore_index=True)
-
       with warnings.catch_warnings():
          warnings.filterwarnings('error', category=RuntimeWarning)
          try:

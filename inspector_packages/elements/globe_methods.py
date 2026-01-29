@@ -3,6 +3,7 @@ import warnings
 import numpy as np
 from utils import cli_output
 
+
 class GlobeMethods:
 
    EQUATOR_RADIUS = 6.378 * 10**6
@@ -142,7 +143,7 @@ class GlobeMethods:
                line_data["arrows"] = arrows
 
          except RuntimeWarning as e:
-            cli_output.WARNING(f"NO transmission line from {sender_name} to {receiver_name}.")
+            cli_output.WARNING(f"{__class__.__name__}: NO transmission line from {sender_name} to {receiver_name}.")
             line_data.update({
                "x": [sender_location[0], receiver_location[0]],
                "y": [sender_location[1], receiver_location[1]],

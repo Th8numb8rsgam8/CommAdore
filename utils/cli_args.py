@@ -1,5 +1,6 @@
 import argparse
 import matplotlib.colors as colors
+import utils.util_functions as utils
 
 
 class CLIParser:
@@ -76,6 +77,7 @@ class CLIParser:
          default=None,
          help="Classification of data used"
       )
+
       cli_parser.add_argument(
          "-Cs", "--cesium",
          dest="use_cesium",
@@ -83,23 +85,40 @@ class CLIParser:
          help="Flag to use CesiumJS as globe visualizer instead of Plotly."
       )
 
+      cli_parser.add_argument(
+         "--timer-enabled",
+         dest="timer_enabled",
+         action="store_true",
+         help="Debug option to display timer results of important functions."
+      )
+
+      cli_parser.add_argument(
+         "-v", "--verbose",
+         action="count",
+         default=0
+      )
+
       cli_parser.add_argument("--version", action="version", version='%(prog)s 1.0.0')
       self._arguments = vars(cli_parser.parse_args())
+
+      utils.TIMER_ENABLED = self._arguments.pop("timer_enabled")
+      cli_output.VERBOSE = self._arguments.pop("verbose")
 
 
 class cli_output:
 
-   def INFO(text):
-      print(f'\033[1;37m {text} \033[0;0m')
+   VERBOSE = 0
 
-    
+   def INFO(text):
+      if cli_output.VERBOSE >= 2:
+         print(f'\033[1;37m {text} \033[0;0m')
+
    def OK(text):
       print(f'\033[1;32m {text} \033[0;0m')
 
-
    def WARNING(text):
-      print(f'\033[1;33m {text} \033[0;0m')
-
+      if cli_output.VERBOSE >= 1:
+         print(f'\033[1;33m {text} \033[0;0m')
 
    def FATAL(text):
       print(f'\033[1;31m {text} \033[0;0m')

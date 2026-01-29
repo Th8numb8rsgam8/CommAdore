@@ -1,10 +1,9 @@
-import time
 import sys
 import networkx as nx
 from inspector_packages import *
 from utils import cli_output
+from ..mission_execution import *
 
-import pdb
 
 class NetworkPlot:
 
@@ -44,14 +43,14 @@ class NetworkPlot:
       node_x, node_y, node_text, nodes_visited = {}, {}, {}, []
       nodes_traces, edge_traces, directions, queue_items = [], [], [], []
       one_way_transmissions, two_way_transmissions = [], []
-      for transmission, group in comm_df.groupby(["Sender_Name", "Receiver_Name"]):
+      for transmission, group in comm_df.groupby([CommDataColumns.SENDER_NAME, CommDataColumns.RECEIVER_NAME]):
 
          sender, receiver = transmission[0], transmission[1]
-         sender_type = group["Sender_Type"].iloc[0]
-         receiver_type = group["Receiver_Type"].iloc[0]
+         sender_type = group[CommDataColumns.SENDER_TYPE].iloc[0]
+         receiver_type = group[CommDataColumns.RECEIVER_TYPE].iloc[0]
 
-         sender_track_info = track_df[track_df["Owning_Platform"] == sender].tail(1) if track_df is not None else None
-         rcvr_track_info = track_df[track_df["Owning_Platform"] == receiver].tail(1) if track_df is not None else None
+         sender_track_info = track_df[track_df[TrackDataColumns.OWNING_PLATFORM] == sender].tail(1) if track_df is not None else None
+         rcvr_track_info = track_df[track_df[TrackDataColumns.OWNING_PLATFORM] == receiver].tail(1) if track_df is not None else None
 
          self._set_node_info(
             node_x, node_y, 
@@ -65,7 +64,7 @@ class NetworkPlot:
             nodes_visited, 
             receiver, receiver_type, rcvr_track_info)
 
-         two_way = comm_df[(comm_df["Sender_Name"] == receiver) & (comm_df["Receiver_Name"] == sender)]
+         two_way = comm_df[(comm_df[CommDataColumns.SENDER_NAME] == receiver) & (comm_df[CommDataColumns.RECEIVER_NAME] == sender)]
          if not two_way.empty:
             if (sender, receiver) not in two_way_transmissions and (receiver, sender) not in two_way_transmissions:
                two_way_transmissions.append((sender, receiver))
@@ -82,12 +81,11 @@ class NetworkPlot:
 
       two_way_tracks = []
       for track_pair in track_edges:
-
          contributor, owning_platform = track_pair
          two_way_track = (owning_platform, contributor) in track_edges
          if two_way_track:
-            rcvr_info = track_df[track_df["Owning_Platform"] == owning_platform].tail(1)
-            rcvr_type = rcvr_info["Platform_Type"].iloc[0]
+            rcvr_info = track_df[track_df[TrackDataColumns.OWNING_PLATFORM] == owning_platform].tail(1)
+            rcvr_type = rcvr_info[TrackDataColumns.PLATFORM_TYPE].iloc[0]
             self._set_node_info(
                node_x, node_y, 
                node_text, node_positions, 
@@ -116,10 +114,10 @@ class NetworkPlot:
          else: # two-way comm or no comm edges
 
             try:
-               contributor_info = platform_df[platform_df["Platform_Name"] == contributor].iloc[0]
-               rcvr_info = track_df[track_df["Owning_Platform"] == owning_platform].tail(1)
-               contributor_type = contributor_info["Platform_Type"]
-               rcvr_type = rcvr_info["Platform_Type"].iloc[0]
+               contributor_info = platform_df.loc[contributor]
+               rcvr_info = track_df[track_df[TrackDataColumns.OWNING_PLATFORM] == owning_platform].tail(1)
+               contributor_type = contributor_info[TrackDataColumns.PLATFORM_TYPE]
+               rcvr_type = rcvr_info[TrackDataColumns.PLATFORM_TYPE].iloc[0]
 
                self._set_node_info(
                   node_x, node_y, 
@@ -136,8 +134,8 @@ class NetworkPlot:
                edge_traces.append(self._add_edge(node_positions[contributor], node_positions[owning_platform], 3, "track"))
                directions.append(self._add_direction(node_positions[contributor], node_positions[owning_platform], ["TRACK INFO" + "<extra></extra>"] * 2, "track"))
 
-            except IndexError as e:
-               cli_output.WARNING(f"{self.__class__.__name__}: {contributor} does not exist at time {platform_df['ISODate'].iloc[0]}")
+            except KeyError as e:
+               cli_output.WARNING(f"{self.__class__.__name__}: {contributor} does not exist at time {platform_df[SharedColumns.ISO_DATE].iloc[0]}")
 
       two_way_track_pts = self._handle_two_way_tracks(track_df, node_positions, two_way_tracks, edge_traces, directions)
 
@@ -149,7 +147,7 @@ class NetworkPlot:
             node_text[platform_type]))
 
       if queue_info is not None:
-         self._add_queues(queue_info, comm_df, node_positions, two_way_pts, queue_items)
+         self._add_queues(queue_info, node_positions, two_way_pts, queue_items)
 
       fig =  go.Figure({"data": nodes_traces + edge_traces + directions + queue_items, "layout": empty_plot})
 
@@ -158,8 +156,8 @@ class NetworkPlot:
 
    def _get_network_layout(self, comm_df, track_df, network_layout):
 
-      transmissions = comm_df[["Sender_Name", "Receiver_Name"]].drop_duplicates()
-      comm_edges = [(row["Sender_Name"], row["Receiver_Name"]) for _, row in transmissions.iterrows()]
+      transmissions = comm_df[[CommDataColumns.SENDER_NAME, CommDataColumns.RECEIVER_NAME]].drop_duplicates()
+      comm_edges = [(row[CommDataColumns.SENDER_NAME], row[CommDataColumns.RECEIVER_NAME]) for _, row in transmissions.iterrows()]
 
       track_edges = self._get_track_edges(track_df) if track_df is not None else []
 
@@ -194,8 +192,8 @@ class NetworkPlot:
 
    def _get_arrow_text(self, df):
 
-      msg_type_counts = df["Message_Type"].value_counts().to_dict()
-      arrow_text = f'{df["Sender_Name"].iloc[0]} >> {df["Receiver_Name"].iloc[0]}<br>'
+      msg_type_counts = df[CommDataColumns.MESSAGE_TYPE].value_counts().to_dict()
+      arrow_text = f'{df[CommDataColumns.SENDER_NAME].iloc[0]} >> {df[CommDataColumns.RECEIVER_NAME].iloc[0]}<br>'
       for msg_type, count in msg_type_counts.items():
          arrow_text += f'{msg_type}: {count}<br>'
       arrow_text += '<extra></extra>'
@@ -285,7 +283,7 @@ class NetworkPlot:
          node_y[node_type].append(pos[1])
          txt = f"{node_name}<br>"
          if track_info is not None and not track_info.empty:
-            track_count = track_info["Track_List_Count"].iloc[0]
+            track_count = track_info[TrackDataColumns.TRACK_LIST_COUNT].iloc[0]
             txt += f"Track Count: {track_count}<br>"
          txt += "<extra></extra>"
          node_text[node_type].append(txt)
@@ -297,8 +295,8 @@ class NetworkPlot:
       two_way_pts = []
       for sender, receiver in two_way_transmissions:
 
-         way1 = frame[(frame["Sender_Name"] == sender) & (frame["Receiver_Name"] == receiver)]
-         way2 = frame[(frame["Sender_Name"] == receiver) & (frame["Receiver_Name"] == sender)]
+         way1 = frame[(frame[CommDataColumns.SENDER_NAME] == sender) & (frame[CommDataColumns.RECEIVER_NAME] == receiver)]
+         way2 = frame[(frame[CommDataColumns.SENDER_NAME] == receiver) & (frame[CommDataColumns.RECEIVER_NAME] == sender)]
          edge_width1 = self._get_edge_width(way1.shape[0])
          arrow_text1 = self._get_arrow_text(way1)
          edge_width2 = self._get_edge_width(way2.shape[0])
@@ -359,20 +357,16 @@ class NetworkPlot:
       return two_way_pts
 
 
-   def _add_queues(self, queue_info, frame, node_positions, two_way_pts, queue_items):
+   def _add_queues(self, queue_info, node_positions, two_way_pts, queue_items):
 
       min_x, max_x, min_y, max_y = self._get_graph_limits(node_positions, two_way_pts)
-
-      for sender in frame["Sender_Name"].unique():
+      for sender, comms in queue_info.items():
          queue_horizontal_spacing = self._q_horizontal_spacing * (max_x - min_x)
          queue_vertical_spacing = self._q_vertical_spacing * (max_y - min_y)
          queue_item_width = self._q_item_width * (max_x - min_x)
          queue_item_height = self._q_item_height * (max_y - min_y)
-
          queues_x_left, queues_x_right = [], []
-         queue_time = sorted([key for key in queue_info[sender] if key <= frame["Timestamp"].iloc[0]])[-1]
-         comms_queues = queue_info[sender][queue_time]
-         num_queues = len(comms_queues)
+         num_queues = len(comms)
          even_queues = num_queues % 2 == 0
          first_split = queue_horizontal_spacing if even_queues else queue_item_width
          x0, y0 = node_positions[sender]
@@ -385,11 +379,11 @@ class NetworkPlot:
             queues_x_right.append(queues_x_right[-1] + shift)
 
          queues_x = sorted(queues_x_left) + queues_x_right
-         for i, comm in enumerate(comms_queues):
+         for i, comm in enumerate(comms):
             queue_x0, queue_x1 = queues_x[i*2:(i+1)*2]
-            msgs = comms_queues[comm]
             update_shift = y0 
-            for msg_num, msg_type in msgs:
+            queue_size = comms[comm]
+            for item_num in range(queue_size):
                update_shift += queue_vertical_spacing
                queue_y0 = update_shift
                update_shift += queue_item_height
@@ -420,7 +414,7 @@ class NetworkPlot:
                   "y": [queue_y0 + 0.5 * (queue_y1 - queue_y0)],
                   "mode": "markers",
                   "zorder": 2,
-                  "customdata": [f"{comm}:{msg_type}:{msg_num}" + "<extra></extra>"],
+                  "customdata": [f"{sender}:{comm}:{item_num+1}" + "<extra></extra>"],
                   "hovertemplate":'%{customdata}',
                   "marker":
                   {
@@ -485,17 +479,17 @@ class NetworkPlot:
    def _get_track_edges(self, track_df):
 
       track_edges = []
-      for platform, grp in track_df.groupby("Owning_Platform"):
+      for platform, grp in track_df.groupby(TrackDataColumns.OWNING_PLATFORM):
          recent_track_info = grp.tail(1)
-         master_track_list = recent_track_info["Master_Track_List"].iloc[0].strip().split(" ")
-         if recent_track_info["Event_Type"].iloc[0] == "LOCAL_TRACK_DROPPED":
-            dropped_track = recent_track_info["Track_ID"].iloc[0]
-            time_dropped = recent_track_info["ISODate"].iloc[0]
+         master_track_list = recent_track_info[TrackDataColumns.MASTER_TRACK_LIST].iloc[0].strip().split(" ")
+         if recent_track_info[SharedColumns.EVENT_TYPE].iloc[0] == "LOCAL_TRACK_DROPPED":
+            dropped_track = recent_track_info[TrackDataColumns.TRACK_ID].iloc[0]
+            time_dropped = recent_track_info[SharedColumns.ISO_DATE].iloc[0]
             master_track_list.remove(dropped_track)
             cli_output.INFO(f"{self.__class__.__name__}: {dropped_track} dropped at {time_dropped}.")
          for local_track in master_track_list:
-            track_grp = grp[grp["Track_ID"] == local_track].tail(1)
-            raw_track_list = track_grp["Raw_Tracks"].iloc[0].strip().split(" ")
+            track_grp = grp[grp[TrackDataColumns.TRACK_ID] == local_track].tail(1)
+            raw_track_list = track_grp[TrackDataColumns.RAW_TRACKS].iloc[0].strip().split(" ")
             for raw_track in raw_track_list:
                contributor_name = raw_track.split(".")[0]
                if contributor_name != "no_tracks":

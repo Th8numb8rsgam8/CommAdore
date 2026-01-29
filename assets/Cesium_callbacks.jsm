@@ -25,9 +25,8 @@ window.dash_clientside = Object.assign({}, window.dash_clientside, {
             const transmission = jsonData[group]["transmission"];
             const info = jsonData[group]["info"];
             const line_data = jsonData[group]["line_points"];
-            const current_time = jsonData[group]["current_time"];
-            
-            let transmission_info = ExternalCommsUtils.transmissionText(transmission, current_time, info);
+
+            let transmission_info = ExternalCommsUtils.transmissionText(transmission, info);
             ExternalCommsUtils.createPoints(info, transmission_info, cesium_viewer);
             ExternalCommsUtils.createLine(line_data, transmission_info, cesium_viewer);
          }
@@ -37,10 +36,9 @@ window.dash_clientside = Object.assign({}, window.dash_clientside, {
 
          const jsonData = JSON.parse(data);
          for (const platform in jsonData) {
-            const info = jsonData[platform]["info"];
-            const current_time = jsonData[platform]["current_time"];
+            const info = jsonData[platform];
             
-            let transmission_info = InternalCommsUtils.internalTransmissionText(platform, current_time, info);
+            let transmission_info = InternalCommsUtils.internalTransmissionText(platform, info);
             InternalCommsUtils.createPoint(info, transmission_info, cesium_viewer);
          }
       },

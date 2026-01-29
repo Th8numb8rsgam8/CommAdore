@@ -23,6 +23,18 @@ div.labeled-div {
   grid-gap: 5px;
 }
 
+#time-button-group {
+  display: grid;
+  grid-template-columns: 50% 50%;
+}
+
+.switch-row {
+  display: grid;
+  grid-template-columns: 100%;
+  place-items: center;
+  padding-bottom: 5px;
+}
+
 div.labeled-div label {
   text-align: right; 
 }

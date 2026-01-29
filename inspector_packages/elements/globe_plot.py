@@ -3,8 +3,7 @@ from pathlib import Path
 import pandas as pd
 from inspector_packages import *
 from .globe_methods import GlobeMethods
-
-import pdb
+from ..mission_execution import *
 
 class GlobePlot:
 
@@ -39,21 +38,21 @@ class GlobePlot:
       track_df = data["track"]
       platform_df = data["platform"]
 
-      internal_pts = internal_df[["SenderLocation_X", "SenderLocation_Y", "SenderLocation_Z"]]
-      sender_pts = external_df[["SenderLocation_X", "SenderLocation_Y", "SenderLocation_Z"]]
-      rcvr_pts = external_df[["ReceiverLocation_X", "ReceiverLocation_Y", "ReceiverLocation_Z"]]
+      internal_pts = internal_df[[CommDataColumns.SENDERLOCATION_X, CommDataColumns.SENDERLOCATION_Y, CommDataColumns.SENDERLOCATION_Z]]
+      sender_pts = external_df[[CommDataColumns.SENDERLOCATION_X, CommDataColumns.SENDERLOCATION_Y, CommDataColumns.SENDERLOCATION_Z]]
+      rcvr_pts = external_df[[CommDataColumns.RECEIVERLOCATION_X, CommDataColumns.RECEIVERLOCATION_Y, CommDataColumns.RECEIVERLOCATION_Z]]
       rcvr_pts = rcvr_pts.rename(columns=
-         {"ReceiverLocation_X": "SenderLocation_X",
-          "ReceiverLocation_Y": "SenderLocation_Y",
-          "ReceiverLocation_Z": "SenderLocation_Z"})
+         {CommDataColumns.RECEIVERLOCATION_X: CommDataColumns.SENDERLOCATION_X,
+          CommDataColumns.RECEIVERLOCATION_Y: CommDataColumns.SENDERLOCATION_Y,
+          CommDataColumns.RECEIVERLOCATION_Z: CommDataColumns.SENDERLOCATION_Z})
 
-      platform_pts = platform_df[["Location_X", "Location_Y", "Location_Z"]]
-      platform_pts = platform_pts.rename(columns=
-         {"Location_X": "SenderLocation_X",
-          "Location_Y": "SenderLocation_Y",
-          "Location_Z": "SenderLocation_Z"})
+      # platform_pts = platform_df[["Location_X", "Location_Y", "Location_Z"]]
+      # platform_pts = platform_pts.rename(columns=
+      #    {"Location_X": "SenderLocation_X",
+      #     "Location_Y": "SenderLocation_Y",
+      #     "Location_Z": "SenderLocation_Z"})
 
-      points_df = pd.concat([internal_pts, sender_pts, rcvr_pts, platform_pts], ignore_index=True)
+      points_df = pd.concat([internal_pts, sender_pts, rcvr_pts], ignore_index=True)
 
       with warnings.catch_warnings():
          warnings.filterwarnings('error', category=RuntimeWarning)
@@ -111,13 +110,19 @@ class GlobePlot:
 
    def _set_axes_range(self, data):
 
-      comm_x_limit = data["comm"][["SenderLocation_X", "ReceiverLocation_X"]].abs().max().max()
-      comm_y_limit = data["comm"][["SenderLocation_Y", "ReceiverLocation_Y"]].abs().max().max()
-      comm_z_limit = data["comm"][["SenderLocation_Z", "ReceiverLocation_Z"]].abs().max().max()
+      x1 = data.execute(f'SELECT MAX(ABS({CommDataColumns.SENDERLOCATION_X})) AS MaxAbsoluteValue FROM {COMM_DATA_TABLE}').fetchone()[0]
+      x2 = data.execute(f'SELECT MAX(ABS({CommDataColumns.RECEIVERLOCATION_X})) AS MaxAbsoluteValue FROM {COMM_DATA_TABLE}').fetchone()[0]
+      y1 = data.execute(f'SELECT MAX(ABS({CommDataColumns.SENDERLOCATION_Y})) AS MaxAbsoluteValue FROM {COMM_DATA_TABLE}').fetchone()[0]
+      y2 = data.execute(f'SELECT MAX(ABS({CommDataColumns.RECEIVERLOCATION_Y})) AS MaxAbsoluteValue FROM {COMM_DATA_TABLE}').fetchone()[0]
+      z1 = data.execute(f'SELECT MAX(ABS({CommDataColumns.SENDERLOCATION_Z})) AS MaxAbsoluteValue FROM {COMM_DATA_TABLE}').fetchone()[0]
+      z2 = data.execute(f'SELECT MAX(ABS({CommDataColumns.RECEIVERLOCATION_Z})) AS MaxAbsoluteValue FROM {COMM_DATA_TABLE}').fetchone()[0]
+      comm_x_limit = max(x1, x2)
+      comm_y_limit = max(y1, y2)
+      comm_z_limit = max(z1, z2)
 
-      platform_x_limit = data["platform"]["Location_X"].abs().max()
-      platform_y_limit = data["platform"]["Location_Y"].abs().max()
-      platform_z_limit = data["platform"]["Location_Z"].abs().max()
+      platform_x_limit = data.execute(f'SELECT MAX(ABS({PlatformDataColumns.LOCATION_X})) AS MaxAbsoluteValue FROM {PLATFORM_DATA_TABLE}').fetchone()[0]
+      platform_y_limit = data.execute(f'SELECT MAX(ABS({PlatformDataColumns.LOCATION_Y})) AS MaxAbsoluteValue FROM {PLATFORM_DATA_TABLE}').fetchone()[0]
+      platform_z_limit = data.execute(f'SELECT MAX(ABS({PlatformDataColumns.LOCATION_Z})) AS MaxAbsoluteValue FROM {PLATFORM_DATA_TABLE}').fetchone()[0]
 
       x_limit = max(comm_x_limit, platform_x_limit)
       y_limit = max(comm_y_limit, platform_y_limit)

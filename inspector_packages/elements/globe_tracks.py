@@ -1,5 +1,6 @@
 from .globe_methods import GlobeMethods
 from utils import cli_output
+from ..mission_execution import *
 import numpy as np
 
 
@@ -12,25 +13,28 @@ class GlobeTracks:
    def update_track_events(track_data, platform_data):
 
       track_events, track_arrows = [], []
-      for platform, grp in track_data.groupby("Owning_Platform"):
+      for platform, grp in track_data.groupby(TrackDataColumns.OWNING_PLATFORM):
 
          recent_track_info = grp.tail(1)
-         receiver_location = recent_track_info[["PlatformLocation_X", "PlatformLocation_Y", "PlatformLocation_Z"]].iloc[0].to_numpy()
-         master_track_list = recent_track_info["Master_Track_List"].iloc[0].strip().split(" ")
-         if recent_track_info["Event_Type"].iloc[0] == "LOCAL_TRACK_DROPPED":
-            dropped_track = recent_track_info["Track_ID"].iloc[0]
-            time_dropped = recent_track_info["ISODate"].iloc[0]
+         receiver_location = recent_track_info[[TrackDataColumns.PLATFORMLOCATION_X, TrackDataColumns.PLATFORMLOCATION_Y, TrackDataColumns.PLATFORMLOCATION_Z]].iloc[0].to_numpy()
+         master_track_list = recent_track_info[TrackDataColumns.MASTER_TRACK_LIST].iloc[0].strip().split(" ")
+         if recent_track_info[SharedColumns.EVENT_TYPE].iloc[0] == "LOCAL_TRACK_DROPPED":
+            dropped_track = recent_track_info[TrackDataColumns.TRACK_ID].iloc[0]
+            time_dropped = recent_track_info[SharedColumns.ISO_DATE].iloc[0]
             master_track_list.remove(dropped_track)
             cli_output.INFO(f"{__class__.__name__}: {dropped_track} dropped at {time_dropped}.")
          for local_track in master_track_list:
-            track_grp = grp[grp["Track_ID"] == local_track].tail(1)
-            raw_track_list = track_grp["Raw_Tracks"].iloc[0].strip().split(" ")
+            track_grp = grp[grp[TrackDataColumns.TRACK_ID] == local_track].tail(1)
+            raw_track_list = track_grp[TrackDataColumns.RAW_TRACKS].iloc[0].strip().split(" ")
             for raw_track in raw_track_list:
                contributor_name = raw_track.split(".")[0]
                if contributor_name != "no_tracks":
                   try:
-                     contributor_data = platform_data[platform_data["Platform_Name"] == contributor_name]
-                     contributor_location = contributor_data[["Location_X", "Location_Y", "Location_Z"]].iloc[0].to_numpy()
+                     contributor_data = platform_data.loc[contributor_name]
+                     contributor_location = contributor_data[
+                        [PlatformDataColumns.LOCATION_X, 
+                         PlatformDataColumns.LOCATION_Y, 
+                         PlatformDataColumns.LOCATION_Z]].to_numpy()
                      platform_range = np.linalg.norm(receiver_location - contributor_location)
                      line_data = GlobeMethods.create_transmission_line(
                         contributor_location, receiver_location, 
@@ -87,7 +91,7 @@ class GlobeTracks:
                               "hovertemplate":'%{customdata}',
                            }
                         )
-                  except IndexError as e:
-                     cli_output.WARNING(f"{contributor_name} does not exist at time {platform_data['ISODate'].iloc[0]}")
+                  except KeyError as e:
+                     cli_output.WARNING(f"{__class__.__name__}: {contributor_name} does not exist at time {platform_data[SharedColumns.ISO_DATE].iloc[0]}")
 
       return track_events, track_arrows

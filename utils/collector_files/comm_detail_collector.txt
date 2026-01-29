@@ -5,9 +5,49 @@ script_variables
    string emptyData = "N/A";
    bool commFileOpened = false;
    double heightOffset = -100;
+   int COMM_EVENT_ID = 0;
+
+   Map<string, string> EmptyData = Map<string, string>();
+   EmptyData["Message_SerialNumber"] = "-1";
+   EmptyData["Message_Originator"] = "unknown";
+   EmptyData["Message_Size"] = "-1";
+   EmptyData["Message_Priority"] = "-1";
+   EmptyData["Message_DataTag"] = "-1";
+   EmptyData["OldMessage_SerialNumber"] = "-1";
+   EmptyData["OldMessage_Originator"] = "unknown";
+   EmptyData["OldMessage_Type"] = "Does Not Exist";
+   EmptyData["OldMessage_Size"] = "-1";
+   EmptyData["OldMessage_Priority"] = "-1";
+   EmptyData["OldMessage_DataTag"] = "-1";
+   EmptyData["Sender_Side"] = "unknown";
+   EmptyData["Sender_Type"] = "unknown";
+   EmptyData["Sender_BaseType"] = "unknown";
+   EmptyData["SenderPart_Type"] = "unknown";
+   EmptyData["SenderPart_BaseType"] = "unknown";
+   EmptyData["Receiver_Name"] = "Does Not Exist";
+   EmptyData["Receiver_Side"] = "unknown";
+   EmptyData["Receiver_Type"] = "unknown";
+   EmptyData["Receiver_BaseType"] = "unknown";
+   EmptyData["ReceiverLocation_X"] = (string)Math.NaN();
+   EmptyData["ReceiverLocation_Y"] = (string)Math.NaN();
+   EmptyData["ReceiverLocation_Z"] = (string)Math.NaN();
+   EmptyData["Receiver_Latitude"] = (string)Math.NaN();
+   EmptyData["Receiver_Longitude"] = (string)Math.NaN();
+   EmptyData["Receiver_Altitude"] = "-1";
+   EmptyData["ReceiverPart_Name"] = "Does Not Exist";
+   EmptyData["ReceiverPart_Type"] = "unknown";
+   EmptyData["ReceiverPart_BaseType"] = "unknown";
+   EmptyData["SenderToRcvr_Range"] = "-1";
+   EmptyData["CommInteraction_Succeeded"] = "-1";
+   EmptyData["CommInteraction_Failed"] = "-1";
+   EmptyData["CommInteraction_FailedStatus"] = "Does Not Exist";
+   EmptyData["Queue_Size"] = "-1";
 
    Array<string> columnNames = {
+      "Event_ID",
       "ISODate",
+      "HMSTime",
+      "SimulationTime",
       "Event_Type",
       "Message_SerialNumber",
       "Message_Originator",
@@ -86,7 +126,10 @@ script void RecordInternalMessages(string aEventType, WsfPlatformPart aXmtr, Wsf
    }
     
    Array<string> dataRow = {
+      (string)COMM_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       aEventType,
       (string)aMessage.SerialNumber(),
       aMessage.Originator(),
@@ -94,12 +137,12 @@ script void RecordInternalMessages(string aEventType, WsfPlatformPart aXmtr, Wsf
       (string)aMessage.SizeInBytes(),
       (string)aMessage.Priority(),
       (string)aMessage.DataTag(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
+      EmptyData["OldMessage_SerialNumber"],
+      EmptyData["OldMessage_Originator"],
+      EmptyData["OldMessage_Type"],
+      EmptyData["OldMessage_Size"],
+      EmptyData["OldMessage_Priority"],
+      EmptyData["OldMessage_DataTag"],
       sender.Platform().Name(),
       sender.Platform().Side(),
       sender.Platform().Type(),
@@ -127,16 +170,18 @@ script void RecordInternalMessages(string aEventType, WsfPlatformPart aXmtr, Wsf
       receiver.Type(),
       receiver.BaseType(),
       (string)rng,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData
+      EmptyData["CommInteraction_Succeeded"],
+      EmptyData["CommInteraction_Failed"],
+      EmptyData["CommInteraction_FailedStatus"],
+      EmptyData["Queue_Size"]
    };
 
    if (commFileOpened)
    {
       commFile.Writeln(",".Join(dataRow));
    }
+
+   COMM_EVENT_ID += 1;
 end_script
 
 script void RecordTransmitMessages(string aEventType, WsfComm aComm, WsfMessage aMsg)
@@ -148,7 +193,10 @@ script void RecordTransmitMessages(string aEventType, WsfComm aComm, WsfMessage 
    }
 
    Array<string> dataRow = {
+      (string)COMM_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       aEventType,
       (string)aMsg.SerialNumber(),
       aMsg.Originator(),
@@ -156,12 +204,12 @@ script void RecordTransmitMessages(string aEventType, WsfComm aComm, WsfMessage 
       (string)aMsg.SizeInBytes(),
       (string)aMsg.Priority(),
       (string)aMsg.DataTag(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
+      EmptyData["OldMessage_SerialNumber"],
+      EmptyData["OldMessage_Originator"],
+      EmptyData["OldMessage_Type"],
+      EmptyData["OldMessage_Size"],
+      EmptyData["OldMessage_Priority"],
+      EmptyData["OldMessage_DataTag"],
       aComm.Platform().Name(),
       aComm.Platform().Side(),
       aComm.Platform().Type(),
@@ -175,30 +223,32 @@ script void RecordTransmitMessages(string aEventType, WsfComm aComm, WsfMessage 
       aComm.Name(),
       aComm.Type(),
       aComm.BaseType(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData
+      EmptyData["Receiver_Name"],
+      EmptyData["Receiver_Side"],
+      EmptyData["Receiver_Type"],
+      EmptyData["Receiver_BaseType"],
+      EmptyData["ReceiverLocation_X"], 
+      EmptyData["ReceiverLocation_Y"],
+      EmptyData["ReceiverLocation_Z"],
+      EmptyData["Receiver_Latitude"],
+      EmptyData["Receiver_Longitude"],
+      EmptyData["Receiver_Altitude"],
+      EmptyData["ReceiverPart_Name"],
+      EmptyData["ReceiverPart_Type"],
+      EmptyData["ReceiverPart_BaseType"],
+      EmptyData["SenderToRcvr_Range"],
+      EmptyData["CommInteraction_Succeeded"],
+      EmptyData["CommInteraction_Failed"],
+      EmptyData["CommInteraction_FailedStatus"],
+      EmptyData["Queue_Size"]
    };
 
    if (commFileOpened)
    {
       commFile.Writeln(",".Join(dataRow));
    } 
+
+   COMM_EVENT_ID += 1;
 
 end_script
 
@@ -245,7 +295,10 @@ script void comm_MessageDeliveryAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessage
    }
    
    Array<string> dataRow = {
+      (string)COMM_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       "MESSAGE_DELIVERY_ATTEMPT",
       (string)aMsg.SerialNumber(),
       aMsg.Originator(),
@@ -253,12 +306,12 @@ script void comm_MessageDeliveryAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessage
       (string)aMsg.SizeInBytes(),
       (string)aMsg.Priority(),
       (string)aMsg.DataTag(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
+      EmptyData["OldMessage_SerialNumber"],
+      EmptyData["OldMessage_Originator"],
+      EmptyData["OldMessage_Type"],
+      EmptyData["OldMessage_Size"],
+      EmptyData["OldMessage_Priority"],
+      EmptyData["OldMessage_DataTag"],
       aXmtr.Platform().Name(),
       aXmtr.Platform().Side(),
       aXmtr.Platform().Type(),
@@ -289,13 +342,15 @@ script void comm_MessageDeliveryAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessage
       (string)aResult.Succeeded(),
       (string)aResult.Failed(),
       aResult.FailedStatus(),
-      emptyData
+      EmptyData["Queue_Size"]
    };
 
    if (commFileOpened)
    {
       commFile.Writeln(",".Join(dataRow));
    }
+
+   COMM_EVENT_ID += 1;
 end_script
 
 script void comm_MessageDiscarded(WsfComm aComm, WsfMessage aMsg, string aReason) 
@@ -309,7 +364,10 @@ script void comm_MessageDiscarded(WsfComm aComm, WsfMessage aMsg, string aReason
    }
    
    Array<string> dataRow = {
+      (string)COMM_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       "MESSAGE_DISCARDED",
       (string)aMsg.SerialNumber(),
       aMsg.Originator(),
@@ -317,12 +375,12 @@ script void comm_MessageDiscarded(WsfComm aComm, WsfMessage aMsg, string aReason
       (string)aMsg.SizeInBytes(),
       (string)aMsg.Priority(),
       (string)aMsg.DataTag(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
+      EmptyData["OldMessage_SerialNumber"],
+      EmptyData["OldMessage_Originator"],
+      EmptyData["OldMessage_Type"],
+      EmptyData["OldMessage_Size"],
+      EmptyData["OldMessage_Priority"],
+      EmptyData["OldMessage_DataTag"],
       aXmtr.Platform().Name(),
       aXmtr.Platform().Side(),
       aXmtr.Platform().Type(),
@@ -336,30 +394,31 @@ script void comm_MessageDiscarded(WsfComm aComm, WsfMessage aMsg, string aReason
       aXmtr.Name(),
       aXmtr.Type(),
       aXmtr.BaseType(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
+      EmptyData["Receiver_Name"],
+      EmptyData["Receiver_Side"],
+      EmptyData["Receiver_Type"],
+      EmptyData["Receiver_BaseType"],
+      EmptyData["ReceiverLocation_X"],
+      EmptyData["ReceiverLocation_Y"],
+      EmptyData["ReceiverLocation_Z"],
+      EmptyData["Receiver_Latitude"],
+      EmptyData["Receiver_Longitude"],
+      EmptyData["Receiver_Altitude"],
+      EmptyData["ReceiverPart_Name"],
+      EmptyData["ReceiverPart_BaseType"],
+      EmptyData["SenderToRcvr_Range"],
+      EmptyData["CommInteraction_Succeeded"],
+      EmptyData["CommInteraction_Failed"],
       aReason,
-      emptyData
+      EmptyData["Queue_Size"]
    };
 
    if (commFileOpened)
    {
       commFile.Writeln(",".Join(dataRow));
    }
+
+   COMM_EVENT_ID += 1;
 end_script
 
 script void comm_MessageFailedRouting(WsfComm aComm, WsfPlatform aReceivingPlatform, WsfMessage aMsg) 
@@ -390,7 +449,10 @@ script void comm_MessageFailedRouting(WsfComm aComm, WsfPlatform aReceivingPlatf
    }
    
    Array<string> dataRow = {
+      (string)COMM_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       "MESSAGE_FAILED_ROUTING",
       (string)aMsg.SerialNumber(),
       aMsg.Originator(),
@@ -398,12 +460,12 @@ script void comm_MessageFailedRouting(WsfComm aComm, WsfPlatform aReceivingPlatf
       (string)aMsg.SizeInBytes(),
       (string)aMsg.Priority(),
       (string)aMsg.DataTag(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
+      EmptyData["OldMessage_SerialNumber"],
+      EmptyData["OldMessage_Originator"],
+      EmptyData["OldMessage_Type"],
+      EmptyData["OldMessage_Size"],
+      EmptyData["OldMessage_Priority"],
+      EmptyData["OldMessage_DataTag"],
       aXmtr.Platform().Name(),
       aXmtr.Platform().Side(),
       aXmtr.Platform().Type(),
@@ -427,20 +489,22 @@ script void comm_MessageFailedRouting(WsfComm aComm, WsfPlatform aReceivingPlatf
       (string)rcvr_pt.Latitude(),
       (string)rcvr_pt.Longitude(),
       (string)rcvr_pt.HeightAboveEllipsoid(),
-      emptyData,
-      emptyData,
-      emptyData,
+      EmptyData["ReceiverPart_Name"],
+      EmptyData["ReceiverPart_Type"],
+      EmptyData["ReceiverPart_BaseType"],
       (string)rng,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData
+      EmptyData["CommInteraction_Succeeded"],
+      EmptyData["CommInteraction_Failed"],
+      EmptyData["CommInteraction_FailedStatus"],
+      EmptyData["Queue_Size"]
    };
 
    if (commFileOpened)
    {
       commFile.Writeln(",".Join(dataRow));
    }
+
+   COMM_EVENT_ID += 1;
     
 end_script
 
@@ -459,7 +523,10 @@ script void comm_MessageUpdated(WsfComm aComm, WsfMessage aOldMsg, WsfMessage aN
    }
    
    Array<string> dataRow = {
+      (string)COMM_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       "MESSAGE_UPDATED",
       (string)aNewMsg.SerialNumber(),
       aNewMsg.Originator(),
@@ -486,30 +553,32 @@ script void comm_MessageUpdated(WsfComm aComm, WsfMessage aOldMsg, WsfMessage aN
       aComm.Name(),
       aComm.Type(),
       aComm.BaseType(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData
+      EmptyData["Receiver_Name"],
+      EmptyData["Receiver_Side"],
+      EmptyData["Receiver_Type"],
+      EmptyData["Receiver_BaseType"],
+      EmptyData["ReceiverLocation_X"],
+      EmptyData["ReceiverLocation_Y"],
+      EmptyData["ReceiverLocation_Z"],
+      EmptyData["Receiver_Latitude"],
+      EmptyData["Receiver_Longitude"],
+      EmptyData["Receiver_Altitude"],
+      EmptyData["ReceiverPart_Name"],
+      EmptyData["ReceiverPart_Type"],
+      EmptyData["ReceiverPart_BaseType"],
+      EmptyData["SenderToRcvr_Range"],
+      EmptyData["CommInteraction_Succeeded"],
+      EmptyData["CommInteraction_Failed"],
+      EmptyData["CommInteraction_FailedStatus"],
+      EmptyData["Queue_Size"]
    };
 
    if (commFileOpened)
    {
       commFile.Writeln(",".Join(dataRow));
    } 
+
+   COMM_EVENT_ID += 1;
 
 end_script
 
@@ -522,7 +591,10 @@ script void comm_MessageQueued(WsfComm aComm, WsfMessage aMsg, int aQueueSize)
    }
    
    Array<string> dataRow = {
+      (string)COMM_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       "MESSAGE_QUEUED",
       (string)aMsg.SerialNumber(),
       aMsg.Originator(),
@@ -530,12 +602,12 @@ script void comm_MessageQueued(WsfComm aComm, WsfMessage aMsg, int aQueueSize)
       (string)aMsg.SizeInBytes(),
       (string)aMsg.Priority(),
       (string)aMsg.DataTag(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
+      EmptyData["OldMessage_SerialNumber"],
+      EmptyData["OldMessage_Originator"],
+      EmptyData["OldMessage_Type"],
+      EmptyData["OldMessage_Size"],
+      EmptyData["OldMessage_Priority"],
+      EmptyData["OldMessage_DataTag"],
       aComm.Platform().Name(),
       aComm.Platform().Side(),
       aComm.Platform().Type(),
@@ -549,23 +621,23 @@ script void comm_MessageQueued(WsfComm aComm, WsfMessage aMsg, int aQueueSize)
       aComm.Name(),
       aComm.Type(),
       aComm.BaseType(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
+      EmptyData["Receiver_Name"],
+      EmptyData["Receiver_Side"],
+      EmptyData["Receiver_Type"],
+      EmptyData["Receiver_BaseType"],
+      EmptyData["ReceiverLocation_X"],
+      EmptyData["ReceiverLocation_Y"],
+      EmptyData["ReceiverLocation_Z"],
+      EmptyData["Receiver_Latitude"],
+      EmptyData["Receiver_Longitude"],
+      EmptyData["Receiver_Altitude"],
+      EmptyData["ReceiverPart_Name"],
+      EmptyData["ReceiverPart_Type"],
+      EmptyData["ReceiverPart_BaseType"],
+      EmptyData["SenderToRcvr_Range"],
+      EmptyData["CommInteraction_Succeeded"],
+      EmptyData["CommInteraction_Failed"],
+      EmptyData["CommInteraction_FailedStatus"],
       (string)aQueueSize
    };
 
@@ -573,6 +645,8 @@ script void comm_MessageQueued(WsfComm aComm, WsfMessage aMsg, int aQueueSize)
    {
       commFile.Writeln(",".Join(dataRow));
    } 
+
+   COMM_EVENT_ID += 1;
 end_script
 
 script void comm_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult) 
@@ -600,7 +674,10 @@ script void comm_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, 
    }
    
    Array<string> dataRow = {
+      (string)COMM_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       "MESSAGE_RECEIVED",
       (string)aMsg.SerialNumber(),
       aMsg.Originator(),
@@ -608,12 +685,12 @@ script void comm_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, 
       (string)aMsg.SizeInBytes(),
       (string)aMsg.Priority(),
       (string)aMsg.DataTag(),
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
-      emptyData,
+      EmptyData["OldMessage_SerialNumber"],
+      EmptyData["OldMessage_Originator"],
+      EmptyData["OldMessage_Type"],
+      EmptyData["OldMessage_Size"],
+      EmptyData["OldMessage_Priority"],
+      EmptyData["OldMessage_DataTag"],
       aXmtr.Platform().Name(),
       aXmtr.Platform().Side(),
       aXmtr.Platform().Type(),
@@ -644,13 +721,15 @@ script void comm_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, 
       (string)aResult.Succeeded(),
       (string)aResult.Failed(),
       aResult.FailedStatus(),
-      emptyData
+      EmptyData["Queue_Size"]
    };
 
    if (commFileOpened)
    {
       commFile.Writeln(",".Join(dataRow));
    }
+
+   COMM_EVENT_ID += 1;
 end_script
 
 script void comm_MessageTransmitted(WsfComm aComm, WsfMessage aMsg)

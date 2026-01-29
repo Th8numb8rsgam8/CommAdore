@@ -3,9 +3,14 @@ script_variables
    FileIO trackFile = FileIO();
    string trackFileName = "track_analysis.csv";
    bool trackFileOpened = false;
+
+   int TRACK_EVENT_ID = 0;
    
    Array<string> trackColumnNames = {
+      "Event_ID",
       "ISODate",
+      "HMSTime",
+      "SimulationTime",
       "Time_Since_Started",
       "Time_Since_Updated",
       "Event_Type",
@@ -49,7 +54,10 @@ script void track_LocalTrackCorrelation(WsfPlatform aPlatform, WsfTrackId aLocal
    }
    
    Array<string> dataRow = {
+      (string)TRACK_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       (string)localTrack.TimeSinceStarted(),
       (string)localTrack.TimeSinceUpdated(),
       "LOCAL_TRACK_CORRELATION",
@@ -75,6 +83,8 @@ script void track_LocalTrackCorrelation(WsfPlatform aPlatform, WsfTrackId aLocal
    {
       trackFile.Writeln(",".Join(dataRow));
    }
+
+   TRACK_EVENT_ID += 1;
 end_script
 
 script void track_LocalTrackDecorrelation(WsfPlatform aPlatform, WsfTrackId aLocalTrackId, WsfTrackId aNonLocalTrackId)
@@ -98,7 +108,10 @@ script void track_LocalTrackDecorrelation(WsfPlatform aPlatform, WsfTrackId aLoc
    }
    
    Array<string> dataRow = {
+      (string)TRACK_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       (string)localTrack.TimeSinceStarted(),
       (string)localTrack.TimeSinceUpdated(),
       "LOCAL_TRACK_DECORRELATION",
@@ -124,6 +137,8 @@ script void track_LocalTrackDecorrelation(WsfPlatform aPlatform, WsfTrackId aLoc
    {
       trackFile.Writeln(",".Join(dataRow));
    }   
+
+   TRACK_EVENT_ID += 1;
 end_script
 
 script void track_LocalTrackInitiated(WsfPlatform aPlatform, WsfLocalTrack aLocalTrack, WsfTrack aTrack)
@@ -145,7 +160,10 @@ script void track_LocalTrackInitiated(WsfPlatform aPlatform, WsfLocalTrack aLoca
    }
    
    Array<string> dataRow = {
+      (string)TRACK_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       (string)aLocalTrack.TimeSinceStarted(),
       (string)aLocalTrack.TimeSinceUpdated(),
       "LOCAL_TRACK_INITIATED",
@@ -171,6 +189,8 @@ script void track_LocalTrackInitiated(WsfPlatform aPlatform, WsfLocalTrack aLoca
    {
       trackFile.Writeln(",".Join(dataRow));
    }    
+
+   TRACK_EVENT_ID += 1;
 end_script
 
 script void track_LocalTrackUpdated(WsfPlatform aPlatform, WsfLocalTrack aLocalTrack, WsfTrack aTrack) 
@@ -192,7 +212,10 @@ script void track_LocalTrackUpdated(WsfPlatform aPlatform, WsfLocalTrack aLocalT
    }
    
    Array<string> dataRow = {
+      (string)TRACK_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       (string)aLocalTrack.TimeSinceStarted(),
       (string)aLocalTrack.TimeSinceUpdated(),
       "LOCAL_TRACK_UPDATED",
@@ -218,6 +241,8 @@ script void track_LocalTrackUpdated(WsfPlatform aPlatform, WsfLocalTrack aLocalT
    {
       trackFile.Writeln(",".Join(dataRow));
    }    
+
+   TRACK_EVENT_ID += 1;
 end_script
 
 script void track_LocalTrackDropped(WsfPlatform aPlatform, WsfLocalTrack aLocalTrack) 
@@ -239,7 +264,10 @@ script void track_LocalTrackDropped(WsfPlatform aPlatform, WsfLocalTrack aLocalT
    }
    
    Array<string> dataRow = {
+      (string)TRACK_EVENT_ID,
       WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
       (string)aLocalTrack.TimeSinceStarted(),
       (string)aLocalTrack.TimeSinceUpdated(),
       "LOCAL_TRACK_DROPPED",
@@ -265,4 +293,6 @@ script void track_LocalTrackDropped(WsfPlatform aPlatform, WsfLocalTrack aLocalT
    {
       trackFile.Writeln(",".Join(dataRow));
    }    
+
+   TRACK_EVENT_ID += 1;
 end_script

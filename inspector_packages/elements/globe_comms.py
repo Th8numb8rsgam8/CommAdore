@@ -1,5 +1,6 @@
+from datetime import datetime
 from .globe_methods import GlobeMethods
-
+from ..mission_execution import *
 
 class GlobeComms:
 
@@ -9,16 +10,26 @@ class GlobeComms:
    }
       
    @staticmethod
-   def update_external_events(external_df, current_time):
+   def update_external_events(external_df):
 
       transmissions, transmission_directions = [], []
-      for transmission, group in external_df.groupby(["Sender_Name", "SenderPart_Name", "Receiver_Name", "ReceiverPart_Name"]):
+      for transmission, group in external_df.groupby(
+         [CommDataColumns.SENDER_NAME, 
+          CommDataColumns.SENDERPART_NAME, 
+          CommDataColumns.RECEIVER_NAME, 
+          CommDataColumns.RECEIVERPART_NAME]):
 
          sender_name, _, receiver_name, _ = transmission
-         transmission_info, success = GlobeComms._transmission_info_text(current_time, transmission, group)
-         sender_location = group[["SenderLocation_X", "SenderLocation_Y", "SenderLocation_Z"]].iloc[0].to_numpy()
-         receiver_location = group[["ReceiverLocation_X", "ReceiverLocation_Y", "ReceiverLocation_Z"]].iloc[0].to_numpy()
-         platform_range = group["SenderToRcvr_Range"].values[0]
+         transmission_info, success = GlobeComms._transmission_info_text(transmission, group)
+         sender_location = group[
+            [CommDataColumns.SENDERLOCATION_X, 
+             CommDataColumns.SENDERLOCATION_Y, 
+             CommDataColumns.SENDERLOCATION_Z]].iloc[0].to_numpy()
+         receiver_location = group[
+            [CommDataColumns.RECEIVERLOCATION_X, 
+             CommDataColumns.RECEIVERLOCATION_Y, 
+             CommDataColumns.RECEIVERLOCATION_Z]].iloc[0].to_numpy()
+         platform_range = group[CommDataColumns.SENDERTORCVR_RANGE].values[0]
 
          line_data = GlobeMethods.create_transmission_line(
             sender_location, receiver_location, 
@@ -77,35 +88,35 @@ class GlobeComms:
       return transmissions, transmission_directions
 
    @staticmethod
-   def update_internal_events(internal_df, current_time):
+   def update_internal_events(internal_df):
 
       x, y, z = [], [], []
       internal_events = []
       internal_colors = []
-      for sender, group in internal_df.groupby("Sender_Name"):
-         x.append(group["SenderLocation_X"].values[0])
-         y.append(group["SenderLocation_Y"].values[0])
-         z.append(group["SenderLocation_Z"].values[0])
+      for sender, group in internal_df.groupby(CommDataColumns.SENDER_NAME):
+         x.append(group[CommDataColumns.SENDERLOCATION_X].values[0])
+         y.append(group[CommDataColumns.SENDERLOCATION_Y].values[0])
+         z.append(group[CommDataColumns.SENDERLOCATION_Z].values[0])
 
          event_info = '' 
-         event_info = f'Time (H:M:S): {current_time}<br>'
-         event_info += f'Platform: {sender}<br>'
          event_num = 0
          for _, row in group.iterrows():
             event_num += 1
             event_info += f'\
-{event_num}. Event Type: {row["Event_Type"]}<br> \
-   Platform Parts: {row["SenderPart_Name"]} >> {row["ReceiverPart_Name"]}<br> \
-   Message Type: {row["Message_Type"]}<br> \
-   Message Number: {row["Message_SerialNumber"]}<br> \
-   Message Originator: {row["Message_Originator"]}<br>'
+<b>{event_num}. Event Type: {row[SharedColumns.EVENT_TYPE]}</b><br> \
+   <b>Platform: {sender}</b><br> \
+   Simulation Time: {row[SharedColumns.SIMULATION_TIME]}<br> \
+   Platform Parts: {row[CommDataColumns.SENDERPART_NAME]} >> {row["ReceiverPart_Name"]}<br> \
+   Message Type: {row[CommDataColumns.MESSAGE_TYPE]}<br> \
+   Message Number: {row[CommDataColumns.MESSAGE_SERIALNUMBER]}<br> \
+   Message Originator: {row[CommDataColumns.MESSAGE_ORIGINATOR]}<br>'
          event_info += '<extra></extra>' 
          internal_events.append(event_info)
 
-         if not group[group["Event_Type"] == "MESSAGE_OUTGOING"].empty and \
-            not group[group["Event_Type"] == "MESSAGE_INCOMING"].empty:
+         if not group[group[SharedColumns.EVENT_TYPE] == "MESSAGE_OUTGOING"].empty and \
+            not group[group[SharedColumns.EVENT_TYPE] == "MESSAGE_INCOMING"].empty:
             internal_colors.append('goldenrod')
-         elif not group[group["Event_Type"] == "MESSAGE_OUTGOING"].empty:
+         elif not group[group[SharedColumns.EVENT_TYPE] == "MESSAGE_OUTGOING"].empty:
             internal_colors.append('cornflowerblue')
          elif not group[group["Event_Type"] == "MESSAGE_INCOMING"].empty:
             internal_colors.append('mediumspringgreen')
@@ -133,26 +144,26 @@ class GlobeComms:
       return updated_plot
 
    @staticmethod
-   def _transmission_info_text(current_time, transmission, group):
+   def _transmission_info_text(transmission, group):
 
       sender, sender_part, receiver, receiver_part = transmission
 
       transmission_info = ''
-      transmission_info = f'Time (H:M:S): {current_time}<br>'
-      transmission_info += f'Sender: {sender} >> Receiver: {receiver}<br>'
       transmission_num = 0
       transmission_result = "Success"
       for _, row in group.iterrows():
          transmission_num += 1
          transmission_info += f'\
-<b>{transmission_num}. Event Type: {row["Event_Type"]}</b><br> \
+<b>{transmission_num}. Event Type: {row[SharedColumns.EVENT_TYPE]}</b><br> \
+   <b>Sender: {sender} >> Receiver: {receiver}</b><br> \
+   Simulation Time: {row[SharedColumns.SIMULATION_TIME]}<br> \
    Platform Parts: {sender_part} >> {receiver_part}<br> \
-   Message Type: {row["Message_Type"]}<br> \
-   Message Number: {row["Message_SerialNumber"]}<br> \
-   Message Originator: {row["Message_Originator"]}<br>'
-         if row["CommInteraction_FailedStatus"] != "Does Not Exist":
+   Message Type: {row[CommDataColumns.MESSAGE_TYPE]}<br> \
+   Message Number: {row[CommDataColumns.MESSAGE_SERIALNUMBER]}<br> \
+   Message Originator: {row[CommDataColumns.MESSAGE_ORIGINATOR]}<br>'
+         if row[CommDataColumns.COMMINTERACTION_FAILEDSTATUS] != "Does Not Exist":
             transmission_result = "Fail"
-            transmission_info += f'    Failure Reason: {row["CommInteraction_FailedStatus"]}<br>'
+            transmission_info += f'    Failure Reason: {row[CommDataColumns.COMMINTERACTION_FAILEDSTATUS]}<br>'
       transmission_info += '<extra></extra>' 
 
       return transmission_info, transmission_result
