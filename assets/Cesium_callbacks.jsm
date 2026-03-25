@@ -43,45 +43,45 @@ window.dash_clientside = Object.assign({}, window.dash_clientside, {
          }
       },
 
-      track_contributions: function(data, cesium_viewer) {
+      // track_contributions: function(data, cesium_viewer) {
 
-         const jsonData = JSON.parse(data);
-         for (const owningPlatform in jsonData)
-         {
-            const platformLocation = jsonData[owningPlatform].Location;
-            const currentTime = jsonData[owningPlatform].CurrentTime;
-            const masterTrackList = jsonData[owningPlatform].LocalTracks;
-            for (const localTrack in masterTrackList)
-            {
-               const contributorList = masterTrackList[localTrack].Contributors;
-               for (const contributor in contributorList)
-               {
-                  const contributorLine = contributorList[contributor].Line;
-                  const x = contributorLine.x;
-                  const y = contributorLine.y;
-                  const z = contributorLine.z;
-                  for (let i = 0; i < x.length - 1; i++) {
-                     try {
-                        cesium_viewer.entities.add({
-                           polyline: {
-                              positions: [
-                                 new Cesium.Cartesian3(x[i], y[i], z[i]), 
-                                 new Cesium.Cartesian3(x[i+1], y[i+1], z[i+1])],
-                              width: 20,
-                              material: new Cesium.PolylineArrowMaterialProperty(Cesium.Color.SNOW)
-                           },
-                           description: "TRACK INFO" 
-                        });
-                     }
-                     catch (error) {
-                        console.log(error);
-                     }
-                  }
-               }
-            }
-            console.log("PARSED");
-         }
-      },
+      //    const jsonData = JSON.parse(data);
+      //    for (const owningPlatform in jsonData)
+      //    {
+      //       const platformLocation = jsonData[owningPlatform].Location;
+      //       const currentTime = jsonData[owningPlatform].CurrentTime;
+      //       const masterTrackList = jsonData[owningPlatform].LocalTracks;
+      //       for (const localTrack in masterTrackList)
+      //       {
+      //          const contributorList = masterTrackList[localTrack].Contributors;
+      //          for (const contributor in contributorList)
+      //          {
+      //             const contributorLine = contributorList[contributor].Line;
+      //             const x = contributorLine.x;
+      //             const y = contributorLine.y;
+      //             const z = contributorLine.z;
+      //             for (let i = 0; i < x.length - 1; i++) {
+      //                try {
+      //                   cesium_viewer.entities.add({
+      //                      polyline: {
+      //                         positions: [
+      //                            new Cesium.Cartesian3(x[i], y[i], z[i]), 
+      //                            new Cesium.Cartesian3(x[i+1], y[i+1], z[i+1])],
+      //                         width: 20,
+      //                         material: new Cesium.PolylineArrowMaterialProperty(Cesium.Color.SNOW)
+      //                      },
+      //                      description: "TRACK INFO" 
+      //                   });
+      //                }
+      //                catch (error) {
+      //                   console.log(error);
+      //                }
+      //             }
+      //          }
+      //       }
+      //       console.log("PARSED");
+      //    }
+      // },
 
       camera_view: function(camera_location, cesium_viewer) {
 
