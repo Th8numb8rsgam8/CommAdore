@@ -49,14 +49,6 @@ class Executor:
          "MESSAGE_TRANSMIT_ENDED": "enable MESSAGE_TRANSMIT_ENDED comm_MessageTransmitEnded"
       }
 
-      ## self._track_events = {
-      ##    "LOCAL_TRACK_CORRELATION": "enable LOCAL_TRACK_CORRELATION track_LocalTrackCorrelation",
-      ##    "LOCAL_TRACK_DECORRELATION": "enable LOCAL_TRACK_CORRELATION track_LocalTrackCorrelation",
-      ##    "LOCAL_TRACK_INITIATED": "enable LOCAL_TRACK_INITIATED track_LocalTrackInitiated",
-      ##    "LOCAL_TRACK_UPDATED": "enable LOCAL_TRACK_UPDATED track_LocalTrackUpdated",
-      ##    "LOCAL_TRACK_DROPPED": "enable LOCAL_TRACK_DROPPED track_LocalTrackDropped"
-      ## }
-
    @property
    def database(self):
       return self._db_conn
@@ -84,11 +76,8 @@ class Executor:
       self._db_conn = sqlite3.connect(self._output_dir.joinpath(output_name, "database.db"))
 
       self._store_in_database("COMM")
-      ## self._store_in_database("TRACK")
-      ## self._store_in_database("PLATFORM")
       self._check_database()
       self._empty_value_substitutions("COMM")
-      ## self._empty_value_substitutions("TRACK")
       self._db_conn.close()
 
    def _retrieve_data(self):
@@ -138,117 +127,117 @@ class Executor:
       database_path = db_path
       # cli_output.OK(f'{mp.current_process().name} INITIALIZED')
 
-   ## @staticmethod
-   ## def _update_chunk(last_id):
+   # @staticmethod
+   # def _update_chunk(last_id):
 
-   ##    with sqlite3.connect(database_path) as worker_conn:
-   ##       worker_cur = worker_conn.cursor()
-   ##       update_query = f'''
-   ##          UPDATE {eval(f'{data_type}_DATA_TABLE')} 
-   ##          SET {SharedColumns.TIMESTAMPS} = ? 
-   ##          WHERE {SharedColumns.EVENT_ID} = ?
-   ##          '''
-   ##       chunk = pd.read_sql_query(f'''
-   ##          SELECT {SharedColumns.EVENT_ID},{SharedColumns.ISO_DATE} 
-   ##          FROM {eval(f'{data_type}_DATA_TABLE')} 
-   ##          WHERE {SharedColumns.EVENT_ID} >= {last_id} ORDER BY {SharedColumns.EVENT_ID}
-   ##          LIMIT {DATABASE_CHUNK_SIZE}
-   ##          ''', worker_conn)
+   #    with sqlite3.connect(database_path) as worker_conn:
+   #       worker_cur = worker_conn.cursor()
+   #       update_query = f'''
+   #          UPDATE {eval(f'{data_type}_DATA_TABLE')} 
+   #          SET {SharedColumns.TIMESTAMPS} = ? 
+   #          WHERE {SharedColumns.EVENT_ID} = ?
+   #          '''
+   #       chunk = pd.read_sql_query(f'''
+   #          SELECT {SharedColumns.EVENT_ID},{SharedColumns.ISO_DATE} 
+   #          FROM {eval(f'{data_type}_DATA_TABLE')} 
+   #          WHERE {SharedColumns.EVENT_ID} >= {last_id} ORDER BY {SharedColumns.EVENT_ID}
+   #          LIMIT {DATABASE_CHUNK_SIZE}
+   #          ''', worker_conn)
 
-   ##       if chunk.empty:
-   ##          worker_cur.close()
-   ##          return True
+   #       if chunk.empty:
+   #          worker_cur.close()
+   #          return True
 
-   ##       try:
-   ##          chunk[SharedColumns.TIMESTAMPS] = chunk[SharedColumns.ISO_DATE].apply(lambda x: parser.isoparse(x).timestamp())
-   ##       except ValueError as e:
-   ##          indices = chunk[chunk[SharedColumns.ISO_DATE].str.contains(":60\.", regex=True) == True].index
-   ##          chunk.loc[indices, SharedColumns.ISO_DATE] = chunk.loc[indices, SharedColumns.ISO_DATE].replace(":60\.", ":00.", regex=True)
-   ##          chunk[SharedColumns.TIMESTAMPS] = chunk[SharedColumns.ISO_DATE].apply(lambda x: parser.isoparse(x).timestamp())
-   ##       finally:
-   ##          worker_cur.executemany(update_query, chunk[[SharedColumns.TIMESTAMPS, SharedColumns.EVENT_ID]].values.tolist())
-   ##          worker_conn.commit()
-   ##       # cli_output.OK(f"{mp.current_process().name} UPDATED CHUNK FROM {last_id}")
-   ##       return False
+   #       try:
+   #          chunk[SharedColumns.TIMESTAMPS] = chunk[SharedColumns.ISO_DATE].apply(lambda x: parser.isoparse(x).timestamp())
+   #       except ValueError as e:
+   #          indices = chunk[chunk[SharedColumns.ISO_DATE].str.contains(":60\.", regex=True) == True].index
+   #          chunk.loc[indices, SharedColumns.ISO_DATE] = chunk.loc[indices, SharedColumns.ISO_DATE].replace(":60\.", ":00.", regex=True)
+   #          chunk[SharedColumns.TIMESTAMPS] = chunk[SharedColumns.ISO_DATE].apply(lambda x: parser.isoparse(x).timestamp())
+   #       finally:
+   #          worker_cur.executemany(update_query, chunk[[SharedColumns.TIMESTAMPS, SharedColumns.EVENT_ID]].values.tolist())
+   #          worker_conn.commit()
+   #       # cli_output.OK(f"{mp.current_process().name} UPDATED CHUNK FROM {last_id}")
+   #       return False
    
    @staticmethod
    def _update_error(exc):
 
       cli_output.FATAL(f"UPDATE ERROR: {exc}")
 
-   ## @timer
-   ## def _update_timestamp_column(self, data_type):
+   # @timer
+   # def _update_timestamp_column(self, data_type):
 
-   ##    cur = self._db_conn.cursor()
-   ##    # cur.execute('PRAGMA journal_mode=WAL')
-   ##    last_id = 0
-   ##    update_query = f'''
-   ##       UPDATE {eval(f'{data_type}_DATA_TABLE')} 
-   ##       SET {SharedColumns.TIMESTAMPS} = ? 
-   ##       WHERE {SharedColumns.EVENT_ID} = ?
-   ##       '''
+   #    cur = self._db_conn.cursor()
+   #    # cur.execute('PRAGMA journal_mode=WAL')
+   #    last_id = 0
+   #    update_query = f'''
+   #       UPDATE {eval(f'{data_type}_DATA_TABLE')} 
+   #       SET {SharedColumns.TIMESTAMPS} = ? 
+   #       WHERE {SharedColumns.EVENT_ID} = ?
+   #       '''
 
-   ##    # num_rows = cur.execute(f"SELECT COUNT(*) FROM {eval(f'{data_type}_DATA_TABLE')}").fetchone()[0]
-   ##    # output_name = self._mission_config["output_name"]
-   ##    # db_path = self._output_dir.joinpath(output_name, "database.db")
-   ##    # available_cores = mp.cpu_count()
-   ##    # update_pool = mp.Pool(
-   ##    #    processes=available_cores, 
-   ##    #    initializer=self._update_pool_init,
-   ##    #    initargs=(db_path, data_type)
-   ##    #    )
+   #    # num_rows = cur.execute(f"SELECT COUNT(*) FROM {eval(f'{data_type}_DATA_TABLE')}").fetchone()[0]
+   #    # output_name = self._mission_config["output_name"]
+   #    # db_path = self._output_dir.joinpath(output_name, "database.db")
+   #    # available_cores = mp.cpu_count()
+   #    # update_pool = mp.Pool(
+   #    #    processes=available_cores, 
+   #    #    initializer=self._update_pool_init,
+   #    #    initargs=(db_path, data_type)
+   #    #    )
 
-   ##    while True:
-   ##       chunk = pd.read_sql_query(f'''
-   ##          SELECT {SharedColumns.EVENT_ID},{SharedColumns.ISO_DATE} 
-   ##          FROM {eval(f'{data_type}_DATA_TABLE')} 
-   ##          WHERE {SharedColumns.EVENT_ID} >= {last_id} ORDER BY {SharedColumns.EVENT_ID}
-   ##          LIMIT {DATABASE_CHUNK_SIZE}
-   ##          ''', self._db_conn)
-   ##       if chunk.empty:
-   ##          break
-   ##       try:
-   ##          chunk[SharedColumns.TIMESTAMPS] = chunk[SharedColumns.ISO_DATE].apply(lambda x: parser.isoparse(x).timestamp())
-   ##       except ValueError as e:
-   ##          indices = chunk[chunk[SharedColumns.ISO_DATE].str.contains(":60\.", regex=True)].index
-   ##          chunk.loc[indices, SharedColumns.ISO_DATE] = chunk.loc[indices, SharedColumns.ISO_DATE].replace(":60\.", ":00.", regex=True)
-   ##          chunk[SharedColumns.TIMESTAMPS] = chunk[SharedColumns.ISO_DATE].apply(lambda x: parser.isoparse(x).timestamp())
-   ##       finally:
-   ##          cur.executemany(update_query, chunk[[SharedColumns.TIMESTAMPS, SharedColumns.EVENT_ID]].values.tolist())
-   ##          last_id += DATABASE_CHUNK_SIZE
+   #    while True:
+   #       chunk = pd.read_sql_query(f'''
+   #          SELECT {SharedColumns.EVENT_ID},{SharedColumns.ISO_DATE} 
+   #          FROM {eval(f'{data_type}_DATA_TABLE')} 
+   #          WHERE {SharedColumns.EVENT_ID} >= {last_id} ORDER BY {SharedColumns.EVENT_ID}
+   #          LIMIT {DATABASE_CHUNK_SIZE}
+   #          ''', self._db_conn)
+   #       if chunk.empty:
+   #          break
+   #       try:
+   #          chunk[SharedColumns.TIMESTAMPS] = chunk[SharedColumns.ISO_DATE].apply(lambda x: parser.isoparse(x).timestamp())
+   #       except ValueError as e:
+   #          indices = chunk[chunk[SharedColumns.ISO_DATE].str.contains(":60\.", regex=True)].index
+   #          chunk.loc[indices, SharedColumns.ISO_DATE] = chunk.loc[indices, SharedColumns.ISO_DATE].replace(":60\.", ":00.", regex=True)
+   #          chunk[SharedColumns.TIMESTAMPS] = chunk[SharedColumns.ISO_DATE].apply(lambda x: parser.isoparse(x).timestamp())
+   #       finally:
+   #          cur.executemany(update_query, chunk[[SharedColumns.TIMESTAMPS, SharedColumns.EVENT_ID]].values.tolist())
+   #          last_id += DATABASE_CHUNK_SIZE
 
-   ##       # row_ids = [last_id + (i * DATABASE_CHUNK_SIZE) for i in range(available_cores)]
-   ##       # if last_id > num_rows:
-   ##       #    update_pool.close()
-   ##       #    update_pool.join()
-   ##       #    break
-   ##       # update_result = update_pool.map_async(
-   ##       #    func=self._update_chunk,
-   ##       #    # args=(last_id,),
-   ##       #    iterable=row_ids,
-   ##       #    # callback=self._update_complete,
-   ##       #    error_callback=self._update_error
-   ##       # )
+   #       # row_ids = [last_id + (i * DATABASE_CHUNK_SIZE) for i in range(available_cores)]
+   #       # if last_id > num_rows:
+   #       #    update_pool.close()
+   #       #    update_pool.join()
+   #       #    break
+   #       # update_result = update_pool.map_async(
+   #       #    func=self._update_chunk,
+   #       #    # args=(last_id,),
+   #       #    iterable=row_ids,
+   #       #    # callback=self._update_complete,
+   #       #    error_callback=self._update_error
+   #       # )
 
-   ##       # chunk = pd.concat(update_result.get())
-   ##       # if chunk.empty:
-   ##       #    update_pool.close()
-   ##       #    update_pool.join()
-   ##       #    break
-   ##       # cur.executemany(update_query, chunk[[SharedColumns.TIMESTAMPS, SharedColumns.EVENT_ID]].values.tolist())
+   #       # chunk = pd.concat(update_result.get())
+   #       # if chunk.empty:
+   #       #    update_pool.close()
+   #       #    update_pool.join()
+   #       #    break
+   #       # cur.executemany(update_query, chunk[[SharedColumns.TIMESTAMPS, SharedColumns.EVENT_ID]].values.tolist())
 
-   ##       # update_complete = any(update_result.get())
-   ##       # if update_complete:
-   ##       #    update_pool.close()
-   ##       #    update_pool.join()
-   ##       #    break
+   #       # update_complete = any(update_result.get())
+   #       # if update_complete:
+   #       #    update_pool.close()
+   #       #    update_pool.join()
+   #       #    break
 
-   ##       # last_id += DATABASE_CHUNK_SIZE
-   ##       # last_id = row_ids[-1] + DATABASE_CHUNK_SIZE
+   #       # last_id += DATABASE_CHUNK_SIZE
+   #       # last_id = row_ids[-1] + DATABASE_CHUNK_SIZE
 
-   ##    self._db_conn.commit()
-   ##    # cur.execute('PRAGMA journal_mode=DELETE')
-   ##    cur.close()
+   #    self._db_conn.commit()
+   #    # cur.execute('PRAGMA journal_mode=DELETE')
+   #    cur.close()
 
    @timer
    def _empty_value_substitutions(self, data_type):
@@ -287,14 +276,6 @@ class Executor:
          shutil.rmtree(self._output_dir.joinpath(self._mission_config["output_name"]))
          sys.exit(1)
 
-      ## track_data_exists = cur.execute(f"SELECT EXISTS(SELECT 1 FROM {TRACK_DATA_TABLE})").fetchone()[0]
-      ## if not track_data_exists:
-      ##    cli_output.WARNING("No track data was collected during scenario execution!")
-
-      ## platform_data_exists = cur.execute(f"SELECT EXISTS(SELECT 1 FROM {PLATFORM_DATA_TABLE})").fetchone()[0]
-      ## if not platform_data_exists:
-      ##    cli_output.WARNING("No platform data was collected during scenario execution!")
-
       cur.close()
 
 
@@ -307,8 +288,6 @@ class Executor:
          else:
             observer_block = "\n   ".join([observer_block, "# " + self._message_events[key]])
 
-      ## for key, event in self._track_events.items():
-      ##    observer_block = "\n   ".join([observer_block, event])
       observer_block += "\nend_observer"
    
       return observer_block
@@ -319,12 +298,6 @@ class Executor:
 
       include_doc += "include_once " + self._program_file.parent.absolute().joinpath(
          "utils", "collector_files", "comm_detail_collector.txt").as_posix() + "\n"
-
-      ## include_doc += "include_once " + self._program_file.parent.absolute().joinpath(
-      ##    "utils", "collector_files", "track_detail_collector.txt").as_posix() + "\n"
-
-      ## include_doc += "include_once " + self._program_file.parent.absolute().joinpath(
-      ##    "utils", "collector_files", "platform_status_collector.txt").as_posix() + "\n"
 
       return include_doc
    
@@ -355,8 +328,6 @@ class Executor:
             sys.exit(1)
 
          self._check_output_file_exists("COMM", executor_file)
-         ## self._check_output_file_exists("TRACK", executor_file)
-         ## self._check_output_file_exists("PLATFORM", executor_file)
 
          cli_output.OK(f"Mission execution of {self._startup_file} successfully completed.")
          os.remove(executor_file)

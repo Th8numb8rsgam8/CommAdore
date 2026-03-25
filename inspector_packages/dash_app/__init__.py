@@ -11,7 +11,6 @@ CESIUM_INTERNAL = "cesium-internal"
 CESIUM_VIEWER = "cesium-viewer"
 CESIUM_CONFIG = "cesium-config"
 CESIUM_CAMERA = "cesium-camera"
-## CESIUM_TRACKS = "cesium-tracks"
 PLOT_FILTERS = "plot-filters"
 
 PLOTS_AREA = "plots-area"
@@ -60,8 +59,5 @@ RECEIVER_BASETYPE = "receiver-basetype"
 RECEIVER_PART = "receiver-part"
 RECEIVER_PART_TYPE = "receiver-part-type"
 RECEIVER_PART_BASETYPE = "receiver-part-basetype"
-
-## OWNING_PLATFORM = "owning-platform"
-## OWNING_PLATFORM_TYPE = "owning-platform-type"
 
 SLIDER_UPPER_LIMIT = 1000
