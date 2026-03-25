@@ -10,8 +10,30 @@ script void SetupParameters()
       writeln("FAILED TO OPEN " + commFileName);
    }
 
+   trackFileOpened = trackFile.Open(trackFileName, "out");
+   if (trackFileOpened)
+   {
+      trackFile.Writeln(",".Join(trackColumnNames));
+   }
+   else
+   {
+      writeln("FAILED TO OPEN " + trackFileName);
+   }
+   
+   platformFileOpened = platformFile.Open(platformFileName, "out");
+   if (platformFileOpened)
+   {
+      platformFile.Writeln(",".Join(platformColumnNames));
+   }
+   else
+   {
+      writeln("FAILED TO OPEN " + platformFileName);
+   }
+
 end_script
 
 script void FinishVisualization()
     commFile.Close();
+    trackFile.Close();
+    platformFile.Close();
 end_script

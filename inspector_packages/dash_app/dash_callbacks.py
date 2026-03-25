@@ -28,6 +28,7 @@ class DashCallbacks:
       self._cesium_config = cesium_config
 
       self._network_plot = NetworkPlot()
+      self._globe_platforms = GlobePlatforms(data)
 
       self._dashboard = DashLayout(
          data,
@@ -132,8 +133,14 @@ class DashCallbacks:
       if is_single_time:
          if ctx.triggered_id != TIME_SLIDER:
             comm_frame = self._filter_comm_table(self._timestamps[0])
+            platform_states = self._globe_platforms.get_platform_states(self._timestamps[0])
+            t = platform_states[SharedColumns.SIMULATION_TIME].iloc[0]
+            track_frame = self._filter_track_table(t)
          else:
             comm_frame = self._filter_comm_table(value)
+            platform_states = self._globe_platforms.get_platform_states(value)
+            t = platform_states[SharedColumns.SIMULATION_TIME].iloc[0]
+            track_frame = self._filter_track_table(t)
       else:
          if ctx.triggered_id != TIME_RANGE_SLIDER:
             upper_limit = self._timestamps[-1] if len(self._timestamps) <= SLIDER_UPPER_LIMIT else self._timestamps[SLIDER_UPPER_LIMIT-1]
@@ -141,10 +148,17 @@ class DashCallbacks:
          else:
             comm_frame = self._filter_comm_table(value, range_slider=True)
 
+         platform_states = None
+         track_frame = None
+
       internal = comm_frame[comm_frame[SharedColumns.EVENT_TYPE].isin(self._internal_messages)]
       external = comm_frame[comm_frame[SharedColumns.EVENT_TYPE].isin(self._external_messages)]
 
-      current_data = {"comm": {"internal": internal, "external": external}}
+      current_data = {
+         "comm": {"internal": internal, "external": external},
+         "track": track_frame,
+         "platform": platform_states
+      }
 
       return current_data
 
@@ -171,6 +185,21 @@ class DashCallbacks:
          .replace('nan', np.nan)\
          .astype(PANDAS_COMM_DATA_TYPES)
 
+      return frame
+
+   def _filter_track_table(self, time_val):
+      query = f'''
+         SELECT *
+         FROM {TRACK_DATA_TABLE}
+         WHERE {SharedColumns.SIMULATION_TIME} <= {time_val}
+         '''
+      frame = pd\
+         .read_sql_query(
+            sql=query, 
+            con=self._data, 
+            index_col=SharedColumns.EVENT_ID)\
+         .replace('nan', np.nan)\
+         .astype(PANDAS_TRACK_DATA_TYPES)
       return frame
 
    def _update_options(self, col_name, data_type):
@@ -306,9 +335,12 @@ class DashCallbacks:
          radio_val, queue_info_toggle,
          time_slider_switch):
 
+         track_df = None
+
          if radio_val:
             if time_slider_switch:
                comm_df = self._filter_comm_table(single_time)
+               track_df = self._filter_track_table(single_time)
             else: # time_slider_switch = OFF
                comm_df = self._filter_comm_table(time_range_value, range_slider=True)
          else: # radio_val = NO
@@ -332,6 +364,8 @@ class DashCallbacks:
          comm_df = comm_df[comm_df[SharedColumns.EVENT_TYPE].isin(self._external_messages)]
          return self._network_plot.generate_network_figure(
             comm_df, 
+            track_df, 
+            self._globe_platforms.get_platform_states(single_time),
             network_layout, 
             self._empty_plot, 
             self._get_queue_info(comm_df, single_time) if (radio_val and time_slider_switch and queue_info_toggle) else None)
@@ -495,8 +529,15 @@ class DashCallbacks:
 
          external = current_data["comm"]["external"]
          internal = current_data["comm"]["internal"]
+         track_data = current_data["track"]
+         platform_data = current_data["platform"]
 
          update = []
+         if track_data is not None and not track_data.empty:
+            track_events, track_arrows = GlobeTracks.update_track_events(track_data, platform_data)
+            update.extend(track_events)
+            update.extend(track_arrows)
+
          if not external.empty:
             transmission_plots, transmission_directions = GlobeComms.update_external_events(external)
             update.extend(transmission_directions)
@@ -540,7 +581,7 @@ class DashCallbacks:
 
       @self._app.callback(
          [Output(CESIUM_EXTERNAL, 'data'), Output(CESIUM_INTERNAL, 'data'), 
-          Output(CESIUM_CAMERA, 'data'),
+          Output(CESIUM_TRACKS, 'data'), Output(CESIUM_CAMERA, 'data'),
          Output(TIME_SLIDER, 'min'), Output(TIME_SLIDER, 'max'),
          Output(TIME_SLIDER, 'value'), Output(TIME_SLIDER, 'marks'),
          Output(TIME_RANGE_SLIDER, 'min'), Output(TIME_RANGE_SLIDER, 'max'),
@@ -559,6 +600,12 @@ class DashCallbacks:
 
          external = current_data["comm"]["external"]
          internal = current_data["comm"]["internal"]
+         track_data = current_data["track"]
+         platform_data = current_data["platform"]
+
+         track_json = {}
+         if track_data is not None and not track_data.empty:
+            track_json = CesiumJSGlobe.get_track_details(track_data, platform_data)
 
          external_json = {}
          if not external.empty:
@@ -604,6 +651,7 @@ class DashCallbacks:
             return [
                json.dumps(external_json), 
                json.dumps(internal_json), 
+               json.dumps(track_json),
                json.dumps(camera_view), 
                self._timestamps[0], 
                self._timestamps[-1], 
@@ -618,6 +666,7 @@ class DashCallbacks:
             return [
                json.dumps(external_json), 
                json.dumps(internal_json), 
+               json.dumps(track_json),
                json.dumps(camera_view), 
                no_update,
                no_update,

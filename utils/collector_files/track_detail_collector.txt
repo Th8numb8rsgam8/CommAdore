@@ -1,0 +1,298 @@
+script_variables
+
+   FileIO trackFile = FileIO();
+   string trackFileName = "track_analysis.csv";
+   bool trackFileOpened = false;
+
+   int TRACK_EVENT_ID = 0;
+   
+   Array<string> trackColumnNames = {
+      "Event_ID",
+      "ISODate",
+      "HMSTime",
+      "SimulationTime",
+      "Time_Since_Started",
+      "Time_Since_Updated",
+      "Event_Type",
+      "Track_ID",
+      "Owning_Platform",
+      "Platform_Type",
+      "NonLocal_Track_ID",
+      "Track_List_Count",
+      "Raw_Track_Count",
+      "Master_Track_List",
+      "Raw_Tracks",
+      "Altitude_Known",
+      "Is_Stale",
+      "PlatformLocation_X",
+      "PlatformLocation_Y",
+      "PlatformLocation_Z",
+      "TargetLocation_X",
+      "TargetLocation_Y",
+      "TargetLocation_Z"
+   };
+end_script_variables
+
+script void track_LocalTrackCorrelation(WsfPlatform aPlatform, WsfTrackId aLocalTrackId, WsfTrackId aNonLocalTrackId)
+
+   WsfLocalTrackList trackList = aPlatform.MasterTrackList();
+   WsfLocalTrack localTrack;
+   string localTracks = "";
+   string rawTracks = "";
+   
+   foreach (WsfLocalTrack track in trackList)
+   {
+      localTracks += track.TrackId().ToString() + " ";
+      if (track.TrackId() == aLocalTrackId)
+      {
+         localTrack = track;         
+         for (int i = 0; i < track.RawTrackCount(); i+=1)
+         {
+            rawTracks += track.RawTrackId(i).ToString() + " ";
+         }
+      }
+   }
+   
+   Array<string> dataRow = {
+      (string)TRACK_EVENT_ID,
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
+      (string)localTrack.TimeSinceStarted(),
+      (string)localTrack.TimeSinceUpdated(),
+      "LOCAL_TRACK_CORRELATION",
+      aLocalTrackId.ToString(),
+      aPlatform.Name(),
+      aPlatform.Type(),
+      aNonLocalTrackId.ToString(),
+      (string)trackList.Count(),
+      (string)localTrack.RawTrackCount(),
+      localTracks,
+      rawTracks,
+      (string)localTrack.AltitudeKnown(),
+      (string)localTrack.IsStale(),
+      (string)aPlatform.Location().X(),
+      (string)aPlatform.Location().Y(),
+      (string)aPlatform.Location().Z(),
+      (string)localTrack.CurrentLocation().X(),
+      (string)localTrack.CurrentLocation().Y(),
+      (string)localTrack.CurrentLocation().Z()
+   };
+
+   if (trackFileOpened)
+   {
+      trackFile.Writeln(",".Join(dataRow));
+   }
+
+   TRACK_EVENT_ID += 1;
+end_script
+
+script void track_LocalTrackDecorrelation(WsfPlatform aPlatform, WsfTrackId aLocalTrackId, WsfTrackId aNonLocalTrackId)
+
+   WsfLocalTrackList trackList = aPlatform.MasterTrackList();
+   WsfLocalTrack localTrack;
+   string localTracks = "";
+   string rawTracks = "";
+   
+   foreach (WsfLocalTrack track in trackList)
+   {
+      localTracks += track.TrackId().ToString() + " ";
+      if (track.TrackId() == aLocalTrackId)
+      {
+         localTrack = track;
+         for (int i = 0; i < track.RawTrackCount(); i+=1)
+         {
+            rawTracks += track.RawTrackId(i).ToString() + " ";
+         }
+      }
+   }
+   
+   Array<string> dataRow = {
+      (string)TRACK_EVENT_ID,
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
+      (string)localTrack.TimeSinceStarted(),
+      (string)localTrack.TimeSinceUpdated(),
+      "LOCAL_TRACK_DECORRELATION",
+      aLocalTrackId.ToString(),
+      aPlatform.Name(),
+      aPlatform.Type(),
+      aNonLocalTrackId.ToString(),
+      (string)trackList.Count(),
+      (string)localTrack.RawTrackCount(),
+      localTracks,
+      rawTracks,
+      (string)localTrack.AltitudeKnown(),
+      (string)localTrack.IsStale(),
+      (string)aPlatform.Location().X(),
+      (string)aPlatform.Location().Y(),
+      (string)aPlatform.Location().Z(),
+      (string)localTrack.CurrentLocation().X(),
+      (string)localTrack.CurrentLocation().Y(),
+      (string)localTrack.CurrentLocation().Z()
+   };
+
+   if (trackFileOpened)
+   {
+      trackFile.Writeln(",".Join(dataRow));
+   }   
+
+   TRACK_EVENT_ID += 1;
+end_script
+
+script void track_LocalTrackInitiated(WsfPlatform aPlatform, WsfLocalTrack aLocalTrack, WsfTrack aTrack)
+
+   WsfLocalTrackList trackList = aPlatform.MasterTrackList();
+   string localTracks = "";
+   string rawTracks = "";
+   
+   foreach (WsfLocalTrack track in trackList)
+   {
+      localTracks += track.TrackId().ToString() + " ";
+      if (track.TrackId() == aLocalTrack.TrackId())
+      {
+         for (int i = 0; i < track.RawTrackCount(); i+=1)
+         {
+            rawTracks += track.RawTrackId(i).ToString() + " ";
+         }
+      }
+   }
+   
+   Array<string> dataRow = {
+      (string)TRACK_EVENT_ID,
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
+      (string)aLocalTrack.TimeSinceStarted(),
+      (string)aLocalTrack.TimeSinceUpdated(),
+      "LOCAL_TRACK_INITIATED",
+      aLocalTrack.TrackId().ToString(),
+      aPlatform.Name(),
+      aPlatform.Type(),
+      aTrack.TrackId().ToString(),
+      (string)trackList.Count(),
+      (string)aLocalTrack.RawTrackCount(),
+      localTracks,
+      rawTracks,
+      (string)aLocalTrack.AltitudeKnown(),
+      (string)aLocalTrack.IsStale(),
+      (string)aPlatform.Location().X(),
+      (string)aPlatform.Location().Y(),
+      (string)aPlatform.Location().Z(),
+      (string)aLocalTrack.CurrentLocation().X(),
+      (string)aLocalTrack.CurrentLocation().Y(),
+      (string)aLocalTrack.CurrentLocation().Z()
+   };
+
+   if (trackFileOpened)
+   {
+      trackFile.Writeln(",".Join(dataRow));
+   }    
+
+   TRACK_EVENT_ID += 1;
+end_script
+
+script void track_LocalTrackUpdated(WsfPlatform aPlatform, WsfLocalTrack aLocalTrack, WsfTrack aTrack) 
+
+   WsfLocalTrackList trackList = aPlatform.MasterTrackList();
+   string localTracks = "";
+   string rawTracks = "";
+   
+   foreach (WsfLocalTrack track in trackList)
+   {
+      localTracks += track.TrackId().ToString() + " ";
+      if (track.TrackId() == aLocalTrack.TrackId())
+      {
+         for (int i = 0; i < track.RawTrackCount(); i+=1)
+         {
+            rawTracks += track.RawTrackId(i).ToString() + " ";
+         }
+      }
+   }
+   
+   Array<string> dataRow = {
+      (string)TRACK_EVENT_ID,
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
+      (string)aLocalTrack.TimeSinceStarted(),
+      (string)aLocalTrack.TimeSinceUpdated(),
+      "LOCAL_TRACK_UPDATED",
+      aLocalTrack.TrackId().ToString(),
+      aPlatform.Name(),
+      aPlatform.Type(),
+      aTrack.TrackId().ToString(),
+      (string)trackList.Count(),
+      (string)aLocalTrack.RawTrackCount(),
+      localTracks,
+      rawTracks,
+      (string)aLocalTrack.AltitudeKnown(),
+      (string)aLocalTrack.IsStale(),
+      (string)aPlatform.Location().X(),
+      (string)aPlatform.Location().Y(),
+      (string)aPlatform.Location().Z(),
+      (string)aLocalTrack.CurrentLocation().X(),
+      (string)aLocalTrack.CurrentLocation().Y(),
+      (string)aLocalTrack.CurrentLocation().Z() 
+   };
+
+   if (trackFileOpened)
+   {
+      trackFile.Writeln(",".Join(dataRow));
+   }    
+
+   TRACK_EVENT_ID += 1;
+end_script
+
+script void track_LocalTrackDropped(WsfPlatform aPlatform, WsfLocalTrack aLocalTrack) 
+
+   WsfLocalTrackList trackList = aPlatform.MasterTrackList();
+   string localTracks = "";
+   string rawTracks = "";
+   
+   foreach (WsfLocalTrack track in trackList)
+   {
+      localTracks += track.TrackId().ToString() + " ";
+      if (track.TrackId() == aLocalTrack.TrackId())
+      {
+         for (int i = 0; i < track.RawTrackCount(); i+=1)
+         {
+            rawTracks += track.RawTrackId(i).ToString() + " ";
+         }
+      }
+   }
+   
+   Array<string> dataRow = {
+      (string)TRACK_EVENT_ID,
+      WsfDateTime.CurrentTime().ToStringIso8601(),
+      WsfDateTime.CurrentTime().ToStringTime(),
+      (string)(int)TIME_NOW,
+      (string)aLocalTrack.TimeSinceStarted(),
+      (string)aLocalTrack.TimeSinceUpdated(),
+      "LOCAL_TRACK_DROPPED",
+      aLocalTrack.TrackId().ToString(),
+      aPlatform.Name(),
+      aPlatform.Type(),
+      emptyData,
+      (string)trackList.Count(),
+      (string)aLocalTrack.RawTrackCount(),
+      localTracks,
+      rawTracks,
+      (string)aLocalTrack.AltitudeKnown(),
+      (string)aLocalTrack.IsStale(),
+      (string)aPlatform.Location().X(),
+      (string)aPlatform.Location().Y(),
+      (string)aPlatform.Location().Z(),
+      (string)aLocalTrack.CurrentLocation().X(),
+      (string)aLocalTrack.CurrentLocation().Y(),
+      (string)aLocalTrack.CurrentLocation().Z() 
+   };
+
+   if (trackFileOpened)
+   {
+      trackFile.Writeln(",".Join(dataRow));
+   }    
+
+   TRACK_EVENT_ID += 1;
+end_script

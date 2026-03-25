@@ -13,6 +13,7 @@ from ..dash_app import (
    CESIUM_CONFIG, 
    CESIUM_EXTERNAL, 
    CESIUM_INTERNAL, 
+   CESIUM_TRACKS,
    CESIUM_VIEWER, 
    GLOBE_GRAPH, 
    CESIUM_CAMERA)
@@ -61,6 +62,75 @@ class CesiumJSGlobe:
             [sender_location[2], receiver_location[2]])
 
    
+   @classmethod
+   def get_track_details(cls, track_data, platform_data):
+
+      track_details = {}
+      for platform, grp in track_data.groupby(TrackDataColumns.OWNING_PLATFORM):
+         track_details[platform] = {}
+
+         recent_track_info = grp.tail(1)
+         receiver_location = recent_track_info[
+            [TrackDataColumns.PLATFORMLOCATION_X, 
+             TrackDataColumns.PLATFORMLOCATION_Y, 
+             TrackDataColumns.PLATFORMLOCATION_Z]].iloc[0].to_numpy()
+         master_track_list = recent_track_info[TrackDataColumns.MASTER_TRACK_LIST].iloc[0].strip().split(" ")
+         current_time = recent_track_info[SharedColumns.SIMULATION_TIME].iloc[0]
+         track_details[platform]["CurrentTime"] = current_time
+         track_details[platform]["Location"] = [receiver_location[0], receiver_location[1], receiver_location[2]]
+         if recent_track_info[SharedColumns.EVENT_TYPE].iloc[0] == "LOCAL_TRACK_DROPPED":
+            dropped_track = recent_track_info[TrackDataColumns.TRACK_ID].iloc[0]
+            time_dropped = recent_track_info[SharedColumns.ISO_DATE].iloc[0]
+            master_track_list.remove(dropped_track)
+            cli_output.INFO(f"{cls.__name__}: {dropped_track} dropped at {time_dropped}.")
+         
+         track_details[platform]["LocalTracks"] = {}
+         for local_track in master_track_list:
+            track_grp = grp[grp[TrackDataColumns.TRACK_ID] == local_track].tail(1)
+            target_location = track_grp[
+               [TrackDataColumns.TARGETLOCATION_X, 
+                TrackDataColumns.TARGETLOCATION_Y, 
+                TrackDataColumns.TARGETLOCATION_Z]].iloc[0].to_numpy()
+            platform_range = np.linalg.norm(receiver_location - target_location)
+            x, y, z, = CesiumJSGlobe.get_line_points(
+               platform, receiver_location,
+               "target", target_location,
+               platform_range)
+
+            track_details[platform]["LocalTracks"][local_track] = {
+               "TargetLocation": [target_location[0], target_location[1], target_location[2]],
+               "TargetLine": {"x": x, "y": y, "z": z},
+               "TimeSinceStarted": track_grp[TrackDataColumns.TIME_SINCE_STARTED].iloc[0],
+               "TimeSinceUpdated": track_grp[TrackDataColumns.TIME_SINCE_UPDATED].iloc[0],
+               "AltitudeKnown": bool(track_grp[TrackDataColumns.ALTITUDE_KNOWN].iloc[0]),
+               "IsStale": bool(track_grp[TrackDataColumns.IS_STALE].iloc[0]),
+               "Contributors": {}
+            }
+            raw_track_list = track_grp[TrackDataColumns.RAW_TRACKS].iloc[0].strip().split(" ")
+            for raw_track in raw_track_list:
+               contributor_name = raw_track.split(".")[0]
+               if contributor_name != "no_tracks":
+                  try:
+                     contributor_data = platform_data.loc[contributor_name]
+                     contributor_location = contributor_data[
+                        [PlatformDataColumns.LOCATION_X, 
+                         PlatformDataColumns.LOCATION_Y, 
+                         PlatformDataColumns.LOCATION_Z]].to_numpy()
+                     platform_range = np.linalg.norm(receiver_location - contributor_location)
+                     x, y, z, = CesiumJSGlobe.get_line_points(
+                        contributor_name, contributor_location,
+                        platform, receiver_location,
+                        platform_range)
+
+                     track_details[platform]["LocalTracks"][local_track]["Contributors"][contributor_name] = {
+                        "Location": [contributor_location[0], contributor_location[1], contributor_location[2]],
+                        "Line": {"x": x, "y": y, "z": z}
+                     }
+                  except KeyError as e:
+                     cli_output.WARNING(f"{cls.__name__}: {contributor_name} does not exist at time {platform_data[SharedColumns.ISO_DATE].iloc[0]}")
+
+      return track_details
+
    @staticmethod
    def set_camera_view(internal_df, external_df):
 
@@ -148,6 +218,15 @@ class CesiumJSGlobe:
             function_name='internal_transmissions'
          ),
          Input(CESIUM_INTERNAL, 'data'),
+         Input(CESIUM_VIEWER, 'data')
+      )
+
+      app.clientside_callback(
+         ClientsideFunction(
+            namespace='Cesium',
+            function_name='track_contributions'
+         ),
+         Input(CESIUM_TRACKS, 'data'),
          Input(CESIUM_VIEWER, 'data')
       )
 

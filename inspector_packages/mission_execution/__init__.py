@@ -3,6 +3,8 @@ from inspector_packages import np
 DATABASE_CHUNK_SIZE = 1000
 
 COMM_DATA_TABLE = "comm_data"
+TRACK_DATA_TABLE = "track_data"
+PLATFORM_DATA_TABLE = "platform_data"
 
 # SHARED COLUMNS
 class SharedColumns:
@@ -58,6 +60,34 @@ class CommDataColumns:
    COMMINTERACTION_FAILEDSTATUS = "CommInteraction_FailedStatus"
    QUEUE_SIZE = "Queue_Size"
 
+# TRACK DATA COLUMNS
+class TrackDataColumns:
+   TIME_SINCE_STARTED = "Time_Since_Started"
+   TIME_SINCE_UPDATED = "Time_Since_Updated"
+   TRACK_ID = "Track_ID"
+   OWNING_PLATFORM = "Owning_Platform"
+   PLATFORM_TYPE = "Platform_Type"
+   NONLOCAL_TRACK_ID = "NonLocal_Track_ID"
+   TRACK_LIST_COUNT = "Track_List_Count"
+   RAW_TRACK_COUNT = "Raw_Track_Count"
+   MASTER_TRACK_LIST = "Master_Track_List"
+   RAW_TRACKS = "Raw_Tracks"
+   ALTITUDE_KNOWN = "Altitude_Known"
+   IS_STALE = "Is_Stale"
+   PLATFORMLOCATION_X = "PlatformLocation_X"
+   PLATFORMLOCATION_Y = "PlatformLocation_Y"
+   PLATFORMLOCATION_Z = "PlatformLocation_Z"
+   TARGETLOCATION_X = "TargetLocation_X"
+   TARGETLOCATION_Y = "TargetLocation_Y"
+   TARGETLOCATION_Z = "TargetLocation_Z"
+
+# PLATFORM DATA COLUMNS
+class PlatformDataColumns:
+   PLATFORM_NAME = "Platform_Name"
+   LOCATION_X = "Location_X"
+   LOCATION_Y = "Location_Y"
+   LOCATION_Z = "Location_Z"
+
 COMM_SUBSTITUTIONS = {
    CommDataColumns.MESSAGE_ORIGINATOR: 'unknown',
    CommDataColumns.OLDMESSAGE_ORIGINATOR: 'unknown',
@@ -75,6 +105,11 @@ COMM_SUBSTITUTIONS = {
    CommDataColumns.RECEIVERPART_TYPE: 'unknown',
    CommDataColumns.RECEIVERPART_BASETYPE: 'unknown',
    CommDataColumns.COMMINTERACTION_FAILEDSTATUS: 'Does Not Exist',
+}
+
+TRACK_SUBSTITUTIONS = {
+   TrackDataColumns.NONLOCAL_TRACK_ID: "no_track",
+   TrackDataColumns.RAW_TRACKS: "no_tracks"
 }
 
 SQLITE_COMM_DATA_TYPES = {
@@ -128,6 +163,44 @@ SQLITE_COMM_DATA_TYPES = {
    CommDataColumns.QUEUE_SIZE: "INTEGER"   
 }
 
+SQLITE_TRACK_DATA_TYPES = {
+   SharedColumns.EVENT_ID: "INTEGER PRIMARY KEY",
+   SharedColumns.ISO_DATE: "TEXT",
+   SharedColumns.HMS_TIME: "TEXT",
+   SharedColumns.SIMULATION_TIME: "REAL",
+   SharedColumns.EVENT_TYPE: "TEXT",
+   TrackDataColumns.TIME_SINCE_STARTED: "REAL",
+   TrackDataColumns.TIME_SINCE_UPDATED: "REAL",
+   TrackDataColumns.TRACK_ID: "TEXT",
+   TrackDataColumns.OWNING_PLATFORM: "TEXT",
+   TrackDataColumns.PLATFORM_TYPE: "TEXT",
+   TrackDataColumns.NONLOCAL_TRACK_ID: "TEXT",
+   TrackDataColumns.TRACK_LIST_COUNT: "INTEGER",
+   TrackDataColumns.RAW_TRACK_COUNT: "INTEGER",
+   TrackDataColumns.MASTER_TRACK_LIST: "TEXT",
+   TrackDataColumns.RAW_TRACKS: "TEXT",
+   TrackDataColumns.ALTITUDE_KNOWN: "INTEGER",
+   TrackDataColumns.IS_STALE: "INTEGER",
+   TrackDataColumns.PLATFORMLOCATION_X: "REAL",
+   TrackDataColumns.PLATFORMLOCATION_Y: "REAL",
+   TrackDataColumns.PLATFORMLOCATION_Z: "REAL",
+   TrackDataColumns.TARGETLOCATION_X: "REAL",
+   TrackDataColumns.TARGETLOCATION_Y: "REAL",
+   TrackDataColumns.TARGETLOCATION_Z: "REAL"
+}
+
+SQLITE_PLATFORM_DATA_TYPES = {
+   SharedColumns.EVENT_ID: "INTEGER PRIMARY KEY",
+   SharedColumns.ISO_DATE: "TEXT",
+   SharedColumns.HMS_TIME: "TEXT",
+   SharedColumns.SIMULATION_TIME: "REAL",
+   PlatformDataColumns.PLATFORM_NAME: "TEXT",
+   TrackDataColumns.PLATFORM_TYPE: "TEXT",
+   PlatformDataColumns.LOCATION_X: "REAL",
+   PlatformDataColumns.LOCATION_Y: "REAL",
+   PlatformDataColumns.LOCATION_Z: "REAL"
+}
+
 
 PANDAS_COMM_DATA_TYPES = {
    SharedColumns.ISO_DATE: str,
@@ -179,12 +252,57 @@ PANDAS_COMM_DATA_TYPES = {
    CommDataColumns.QUEUE_SIZE: np.int16
 }
 
+PANDAS_TRACK_DATA_TYPES = {
+   SharedColumns.ISO_DATE: str,
+   SharedColumns.HMS_TIME: str,
+   SharedColumns.SIMULATION_TIME: np.float64,
+   SharedColumns.EVENT_TYPE: str,
+   TrackDataColumns.TIME_SINCE_STARTED: np.float64,
+   TrackDataColumns.TIME_SINCE_UPDATED: np.float64,
+   TrackDataColumns.TRACK_ID: str,
+   TrackDataColumns.OWNING_PLATFORM: str,
+   TrackDataColumns.PLATFORM_TYPE: str,
+   TrackDataColumns.NONLOCAL_TRACK_ID: str,
+   TrackDataColumns.TRACK_LIST_COUNT: np.uint16,
+   TrackDataColumns.RAW_TRACK_COUNT: np.uint16,
+   TrackDataColumns.MASTER_TRACK_LIST: str,
+   TrackDataColumns.RAW_TRACKS: str,
+   TrackDataColumns.ALTITUDE_KNOWN: bool,
+   TrackDataColumns.IS_STALE: bool,
+   TrackDataColumns.PLATFORMLOCATION_X: np.float64,
+   TrackDataColumns.PLATFORMLOCATION_Y: np.float64,
+   TrackDataColumns.PLATFORMLOCATION_Z: np.float64,
+   TrackDataColumns.TARGETLOCATION_X: np.float64,
+   TrackDataColumns.TARGETLOCATION_Y: np.float64,
+   TrackDataColumns.TARGETLOCATION_Z: np.float64
+}
+
+PANDAS_PLATFORM_DATA_TYPES = {
+   SharedColumns.ISO_DATE: str,
+   SharedColumns.HMS_TIME: str,
+   SharedColumns.SIMULATION_TIME: np.float64,
+   # PlatformDataColumns.PLATFORM_NAME: str,
+   TrackDataColumns.PLATFORM_TYPE: str,
+   PlatformDataColumns.LOCATION_X: np.float64,
+   PlatformDataColumns.LOCATION_Y: np.float64,
+   PlatformDataColumns.LOCATION_Z: np.float64
+}
+
 __all__ = [
    "DATABASE_CHUNK_SIZE",
    "COMM_DATA_TABLE",
+   "TRACK_DATA_TABLE",
+   "PLATFORM_DATA_TABLE",
    "COMM_SUBSTITUTIONS",
+   "TRACK_SUBSTITUTIONS",
    "SQLITE_COMM_DATA_TYPES",
+   "SQLITE_TRACK_DATA_TYPES",
+   "SQLITE_PLATFORM_DATA_TYPES",
    "PANDAS_COMM_DATA_TYPES",
+   "PANDAS_TRACK_DATA_TYPES",
+   "PANDAS_PLATFORM_DATA_TYPES",
    "SharedColumns",
    "CommDataColumns",
+   "TrackDataColumns",
+   "PlatformDataColumns"
 ]

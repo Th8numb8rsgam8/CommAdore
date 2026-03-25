@@ -35,6 +35,8 @@ class GlobePlot:
 
       internal_df = data["comm"]["internal"]
       external_df = data["comm"]["external"]
+      track_df = data["track"]
+      platform_df = data["platform"]
 
       internal_pts = internal_df[[CommDataColumns.SENDERLOCATION_X, CommDataColumns.SENDERLOCATION_Y, CommDataColumns.SENDERLOCATION_Z]]
       sender_pts = external_df[[CommDataColumns.SENDERLOCATION_X, CommDataColumns.SENDERLOCATION_Y, CommDataColumns.SENDERLOCATION_Z]]
@@ -43,6 +45,12 @@ class GlobePlot:
          {CommDataColumns.RECEIVERLOCATION_X: CommDataColumns.SENDERLOCATION_X,
           CommDataColumns.RECEIVERLOCATION_Y: CommDataColumns.SENDERLOCATION_Y,
           CommDataColumns.RECEIVERLOCATION_Z: CommDataColumns.SENDERLOCATION_Z})
+
+      platform_pts = platform_df[["Location_X", "Location_Y", "Location_Z"]]
+      platform_pts = platform_pts.rename(columns=
+         {"Location_X": "SenderLocation_X",
+          "Location_Y": "SenderLocation_Y",
+          "Location_Z": "SenderLocation_Z"})
 
       points_df = pd.concat([internal_pts, sender_pts, rcvr_pts], ignore_index=True)
 
@@ -112,9 +120,17 @@ class GlobePlot:
       comm_y_limit = max(y1, y2)
       comm_z_limit = max(z1, z2)
 
+      platform_x_limit = data.execute(f'SELECT MAX(ABS({PlatformDataColumns.LOCATION_X})) AS MaxAbsoluteValue FROM {PLATFORM_DATA_TABLE}').fetchone()[0]
+      platform_y_limit = data.execute(f'SELECT MAX(ABS({PlatformDataColumns.LOCATION_Y})) AS MaxAbsoluteValue FROM {PLATFORM_DATA_TABLE}').fetchone()[0]
+      platform_z_limit = data.execute(f'SELECT MAX(ABS({PlatformDataColumns.LOCATION_Z})) AS MaxAbsoluteValue FROM {PLATFORM_DATA_TABLE}').fetchone()[0]
+
+      x_limit = max(comm_x_limit, platform_x_limit)
+      y_limit = max(comm_y_limit, platform_y_limit)
+      z_limit = max(comm_z_limit, platform_z_limit)
+
       self._axes_range = [
-         -max(comm_x_limit, comm_y_limit, comm_z_limit, GlobeMethods.EQUATOR_RADIUS),
-         max(comm_x_limit, comm_y_limit, comm_z_limit, GlobeMethods.EQUATOR_RADIUS)
+         -max(x_limit, y_limit, z_limit, GlobeMethods.EQUATOR_RADIUS),
+         max(x_limit, y_limit, z_limit, GlobeMethods.EQUATOR_RADIUS)
       ]
 
 

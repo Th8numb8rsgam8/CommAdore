@@ -49,6 +49,14 @@ class Executor:
          "MESSAGE_TRANSMIT_ENDED": "enable MESSAGE_TRANSMIT_ENDED comm_MessageTransmitEnded"
       }
 
+      self._track_events = {
+         "LOCAL_TRACK_CORRELATION": "enable LOCAL_TRACK_CORRELATION track_LocalTrackCorrelation",
+         "LOCAL_TRACK_DECORRELATION": "enable LOCAL_TRACK_CORRELATION track_LocalTrackCorrelation",
+         "LOCAL_TRACK_INITIATED": "enable LOCAL_TRACK_INITIATED track_LocalTrackInitiated",
+         "LOCAL_TRACK_UPDATED": "enable LOCAL_TRACK_UPDATED track_LocalTrackUpdated",
+         "LOCAL_TRACK_DROPPED": "enable LOCAL_TRACK_DROPPED track_LocalTrackDropped"
+      }
+
    @property
    def database(self):
       return self._db_conn
@@ -76,8 +84,11 @@ class Executor:
       self._db_conn = sqlite3.connect(self._output_dir.joinpath(output_name, "database.db"))
 
       self._store_in_database("COMM")
+      self._store_in_database("TRACK")
+      self._store_in_database("PLATFORM")
       self._check_database()
       self._empty_value_substitutions("COMM")
+      self._empty_value_substitutions("TRACK")
       self._db_conn.close()
 
    def _retrieve_data(self):
@@ -276,6 +287,14 @@ class Executor:
          shutil.rmtree(self._output_dir.joinpath(self._mission_config["output_name"]))
          sys.exit(1)
 
+      track_data_exists = cur.execute(f"SELECT EXISTS(SELECT 1 FROM {TRACK_DATA_TABLE})").fetchone()[0]
+      if not track_data_exists:
+         cli_output.WARNING("No track data was collected during scenario execution!")
+
+      platform_data_exists = cur.execute(f"SELECT EXISTS(SELECT 1 FROM {PLATFORM_DATA_TABLE})").fetchone()[0]
+      if not platform_data_exists:
+         cli_output.WARNING("No platform data was collected during scenario execution!")
+
       cur.close()
 
 
@@ -288,6 +307,8 @@ class Executor:
          else:
             observer_block = "\n   ".join([observer_block, "# " + self._message_events[key]])
 
+      for key, event in self._track_events.items():
+         observer_block = "\n   ".join([observer_block, event])
       observer_block += "\nend_observer"
    
       return observer_block
@@ -298,6 +319,12 @@ class Executor:
 
       include_doc += "include_once " + self._program_file.parent.absolute().joinpath(
          "utils", "collector_files", "comm_detail_collector.txt").as_posix() + "\n"
+
+      include_doc += "include_once " + self._program_file.parent.absolute().joinpath(
+         "utils", "collector_files", "track_detail_collector.txt").as_posix() + "\n"
+
+      include_doc += "include_once " + self._program_file.parent.absolute().joinpath(
+         "utils", "collector_files", "platform_status_collector.txt").as_posix() + "\n"
 
       return include_doc
    
@@ -328,6 +355,8 @@ class Executor:
             sys.exit(1)
 
          self._check_output_file_exists("COMM", executor_file)
+         self._check_output_file_exists("TRACK", executor_file)
+         self._check_output_file_exists("PLATFORM", executor_file)
 
          cli_output.OK(f"Mission execution of {self._startup_file} successfully completed.")
          os.remove(executor_file)

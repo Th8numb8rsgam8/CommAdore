@@ -179,6 +179,7 @@ class DashLayout:
          dcc.Store(id=CESIUM_CAMERA),
          dcc.Store(id=CESIUM_EXTERNAL),
          dcc.Store(id=CESIUM_INTERNAL),
+         dcc.Store(id=CESIUM_TRACKS),
          html.Div(
             id="tooltip",
             style={
@@ -284,7 +285,7 @@ class DashLayout:
             'zIndex': '5'
          },
          children=[
-            dbc.Col([self._create_comm_filter_options()], width=6),
+            dbc.Col([self._create_comm_filter_options(), self._create_track_filter_options()], width=6),
             dbc.Col(self._create_plot_filters(), width=6),
          ]
       )
@@ -530,6 +531,18 @@ class DashLayout:
             self._create_dropdown("Receiver Part Type", RECEIVER_PART_TYPE, self._get_unique_values(CommDataColumns.RECEIVERPART_TYPE, COMM_DATA_TABLE), True, "All Receiver Part Types"),
             self._create_dropdown("Receiver Part BaseType", RECEIVER_PART_BASETYPE, self._get_unique_values(CommDataColumns.RECEIVERPART_BASETYPE, COMM_DATA_TABLE), True, "All Receiver Part BaseTypes"),
             ], title="Comm Filter Options")],
+            start_collapsed=True
+         )
+
+      return filter_options
+
+   def _create_track_filter_options(self):
+
+      filter_options = dbc.Accordion(
+         children=[dbc.AccordionItem([
+            self._create_dropdown("Owning Platform", OWNING_PLATFORM, self._get_unique_values(TrackDataColumns.OWNING_PLATFORM, TRACK_DATA_TABLE), True, "All Platforms"),
+            self._create_dropdown("Owning Platform Type", OWNING_PLATFORM_TYPE, self._get_unique_values(TrackDataColumns.PLATFORM_TYPE, TRACK_DATA_TABLE), True, "All Platform Types"),
+            ], title="Track Filter Options")],
             start_collapsed=True
          )
 
