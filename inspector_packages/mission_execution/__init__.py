@@ -1,6 +1,6 @@
 from inspector_packages import np
 
-DATABASE_CHUNK_SIZE = 1000
+DATABASE_CHUNK_SIZE = 50000
 
 COMM_DATA_TABLE = "comm_data"
 

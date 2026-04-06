@@ -1,11 +1,15 @@
 script_variables
 
    FileIO commFile = FileIO();
-   string commFileName = "comms_analysis.csv";
+   string commFileName = "comms_analysis";
    string emptyData = "N/A";
    bool commFileOpened = false;
    double heightOffset = -100;
    int COMM_EVENT_ID = 0;
+   
+   int FILE_NUM = 1;
+   int ROWS_PER_FILE = 100000;
+   string fileName = commFileName + "_" + (string)FILE_NUM + ".csv";
 
    Map<string, string> EmptyData = Map<string, string>();
    EmptyData["Message_SerialNumber"] = "-1";
@@ -95,6 +99,23 @@ script_variables
    };
 end_script_variables
 
+script void NewFileCheck()
+   if (Math.Mod(COMM_EVENT_ID, ROWS_PER_FILE) == 0)
+   {
+      commFile.Close();
+      FILE_NUM += 1;
+      fileName = commFileName + "_" + (string)FILE_NUM + ".csv";      
+      commFileOpened = commFile.Open(fileName, "out");
+      if (commFileOpened)
+      {
+         commFile.Writeln(",".Join(columnNames));
+      }
+      else
+      {
+         writeln("FAILED TO OPEN " + commFileName);
+      }
+   }
+end_script
 
 script void RecordInternalMessages(string aEventType, WsfPlatformPart aXmtr, WsfPlatformPart aRcvr, WsfMessage aMessage)
    WsfPlatformPart sender = aXmtr;
@@ -182,6 +203,7 @@ script void RecordInternalMessages(string aEventType, WsfPlatformPart aXmtr, Wsf
    }
 
    COMM_EVENT_ID += 1;
+   NewFileCheck();
 end_script
 
 script void RecordTransmitMessages(string aEventType, WsfComm aComm, WsfMessage aMsg)
@@ -249,7 +271,7 @@ script void RecordTransmitMessages(string aEventType, WsfComm aComm, WsfMessage 
    } 
 
    COMM_EVENT_ID += 1;
-
+   NewFileCheck();
 end_script
 
 script void comm_MessageOutgoing(WsfPlatformPart aXmtr, WsfComm aRcvr, WsfMessage aMessage)
@@ -351,6 +373,7 @@ script void comm_MessageDeliveryAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessage
    }
 
    COMM_EVENT_ID += 1;
+   NewFileCheck();
 end_script
 
 script void comm_MessageDiscarded(WsfComm aComm, WsfMessage aMsg, string aReason) 
@@ -419,6 +442,7 @@ script void comm_MessageDiscarded(WsfComm aComm, WsfMessage aMsg, string aReason
    }
 
    COMM_EVENT_ID += 1;
+   NewFileCheck();
 end_script
 
 script void comm_MessageFailedRouting(WsfComm aComm, WsfPlatform aReceivingPlatform, WsfMessage aMsg) 
@@ -505,7 +529,7 @@ script void comm_MessageFailedRouting(WsfComm aComm, WsfPlatform aReceivingPlatf
    }
 
    COMM_EVENT_ID += 1;
-    
+   NewFileCheck();
 end_script
 
 script void comm_MessageHop(WsfComm aRcvrPtr, WsfComm aDstPtr, WsfMessage aMsg) 
@@ -579,7 +603,7 @@ script void comm_MessageUpdated(WsfComm aComm, WsfMessage aOldMsg, WsfMessage aN
    } 
 
    COMM_EVENT_ID += 1;
-
+   NewFileCheck();
 end_script
 
 script void comm_MessageQueued(WsfComm aComm, WsfMessage aMsg, int aQueueSize) 
@@ -647,6 +671,7 @@ script void comm_MessageQueued(WsfComm aComm, WsfMessage aMsg, int aQueueSize)
    } 
 
    COMM_EVENT_ID += 1;
+   NewFileCheck();
 end_script
 
 script void comm_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult) 
@@ -730,6 +755,7 @@ script void comm_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, 
    }
 
    COMM_EVENT_ID += 1;
+   NewFileCheck();
 end_script
 
 script void comm_MessageTransmitted(WsfComm aComm, WsfMessage aMsg)

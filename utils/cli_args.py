@@ -117,8 +117,8 @@ class cli_output:
       print(f'\033[1;32m {text} \033[0;0m')
 
    def WARNING(text):
-      if cli_output.VERBOSE >= 1:
-         print(f'\033[1;33m {text} \033[0;0m')
+      # if cli_output.VERBOSE >= 1:
+      print(f'\033[1;33m {text} \033[0;0m')
 
    def FATAL(text):
       print(f'\033[1;31m {text} \033[0;0m')

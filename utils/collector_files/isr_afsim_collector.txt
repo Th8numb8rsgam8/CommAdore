@@ -1,6 +1,6 @@
 script void SetupParameters()
     
-   commFileOpened = commFile.Open(commFileName, "out");
+   commFileOpened = commFile.Open(fileName, "out");
    if (commFileOpened)
    {
       commFile.Writeln(",".Join(columnNames));
