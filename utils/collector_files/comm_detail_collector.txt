@@ -1,15 +1,13 @@
 script_variables
 
    FileIO commFile = FileIO();
-   string commFileName = "comms_analysis";
-   string emptyData = "N/A";
    bool commFileOpened = false;
    double heightOffset = -100;
    int COMM_EVENT_ID = 0;
    
    int FILE_NUM = 1;
-   int ROWS_PER_FILE = 100000;
-   string fileName = commFileName + "_" + (string)FILE_NUM + ".csv";
+   # int ROWS_PER_FILE = 100000;
+   string fileName = $<COMM_FILE_NAME:>$ + "_" + (string)FILE_NUM + ".csv";
 
    Map<string, string> EmptyData = Map<string, string>();
    EmptyData["Message_SerialNumber"] = "-1";
@@ -100,11 +98,11 @@ script_variables
 end_script_variables
 
 script void NewFileCheck()
-   if (Math.Mod(COMM_EVENT_ID, ROWS_PER_FILE) == 0)
+   if (Math.Mod(COMM_EVENT_ID, $<ROWS_PER_FILE:>$) == 0)
    {
       commFile.Close();
       FILE_NUM += 1;
-      fileName = commFileName + "_" + (string)FILE_NUM + ".csv";      
+      fileName = $<COMM_FILE_NAME:>$ + "_" + (string)FILE_NUM + ".csv";      
       commFileOpened = commFile.Open(fileName, "out");
       if (commFileOpened)
       {
@@ -112,7 +110,7 @@ script void NewFileCheck()
       }
       else
       {
-         writeln("FAILED TO OPEN " + commFileName);
+         writeln("FAILED TO OPEN " + $<COMM_FILE_NAME:>$);
       }
    }
 end_script
@@ -274,25 +272,25 @@ script void RecordTransmitMessages(string aEventType, WsfComm aComm, WsfMessage 
    NewFileCheck();
 end_script
 
-script void comm_MessageOutgoing(WsfPlatformPart aXmtr, WsfComm aRcvr, WsfMessage aMessage)
+script void MessageOutgoing_$<UUID:>$(WsfPlatformPart aXmtr, WsfComm aRcvr, WsfMessage aMessage)
 
    RecordInternalMessages("MESSAGE_OUTGOING", aXmtr, aRcvr, aMessage);
    
 end_script
 
-script void comm_MessageIncoming(WsfComm aXmtr, WsfPlatformPart aRcvr, WsfMessage aMessage)
+script void MessageIncoming_$<UUID:>$(WsfComm aXmtr, WsfPlatformPart aRcvr, WsfMessage aMessage)
 
    RecordInternalMessages("MESSAGE_INCOMING", aXmtr, aRcvr, aMessage);
    
 end_script
 
-script void comm_MessageInternal(WsfPlatformPart aXmtr, WsfPlatformPart aRcvr, WsfMessage aMessage)
+script void MessageInternal_$<UUID:>$(WsfPlatformPart aXmtr, WsfPlatformPart aRcvr, WsfMessage aMessage)
 
    RecordInternalMessages("MESSAGE_INTERNAL", aXmtr, aRcvr, aMessage);
    
 end_script
 
-script void comm_MessageDeliveryAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult) 
+script void MessageDeliveryAttempt_$<UUID:>$(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult) 
 
    WsfGeoPoint sender_pt = aXmtr.Platform().Location();
    if (sender_pt.HeightAboveEllipsoid() <= 0)
@@ -376,7 +374,7 @@ script void comm_MessageDeliveryAttempt(WsfComm aXmtr, WsfComm aRcvr, WsfMessage
    NewFileCheck();
 end_script
 
-script void comm_MessageDiscarded(WsfComm aComm, WsfMessage aMsg, string aReason) 
+script void MessageDiscarded_$<UUID:>$(WsfComm aComm, WsfMessage aMsg, string aReason) 
 
    WsfComm aXmtr = aComm;
    
@@ -445,7 +443,7 @@ script void comm_MessageDiscarded(WsfComm aComm, WsfMessage aMsg, string aReason
    NewFileCheck();
 end_script
 
-script void comm_MessageFailedRouting(WsfComm aComm, WsfPlatform aReceivingPlatform, WsfMessage aMsg) 
+script void MessageFailedRouting_$<UUID:>$(WsfComm aComm, WsfPlatform aReceivingPlatform, WsfMessage aMsg) 
 
    WsfComm aXmtr = aComm;
    WsfPlatform aRcvr = aReceivingPlatform;
@@ -532,13 +530,13 @@ script void comm_MessageFailedRouting(WsfComm aComm, WsfPlatform aReceivingPlatf
    NewFileCheck();
 end_script
 
-script void comm_MessageHop(WsfComm aRcvrPtr, WsfComm aDstPtr, WsfMessage aMsg) 
+script void MessageHop_$<UUID:>$(WsfComm aRcvrPtr, WsfComm aDstPtr, WsfMessage aMsg) 
 
    RecordInternalMessages("MESSAGE_HOP", aRcvrPtr, aDstPtr, aMsg);
 
 end_script
 
-script void comm_MessageUpdated(WsfComm aComm, WsfMessage aOldMsg, WsfMessage aNewMsg)
+script void MessageUpdated_$<UUID:>$(WsfComm aComm, WsfMessage aOldMsg, WsfMessage aNewMsg)
 
    WsfGeoPoint sender_pt = aComm.Platform().Location();
    if (sender_pt.HeightAboveEllipsoid() <= 0)
@@ -606,7 +604,7 @@ script void comm_MessageUpdated(WsfComm aComm, WsfMessage aOldMsg, WsfMessage aN
    NewFileCheck();
 end_script
 
-script void comm_MessageQueued(WsfComm aComm, WsfMessage aMsg, int aQueueSize) 
+script void MessageQueued_$<UUID:>$(WsfComm aComm, WsfMessage aMsg, int aQueueSize) 
 
    WsfGeoPoint sender_pt = aComm.Platform().Location();
    if (sender_pt.HeightAboveEllipsoid() <= 0)
@@ -674,7 +672,7 @@ script void comm_MessageQueued(WsfComm aComm, WsfMessage aMsg, int aQueueSize)
    NewFileCheck();
 end_script
 
-script void comm_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult) 
+script void MessageReceived_$<UUID:>$(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, WsfCommInteraction aResult) 
 
    WsfGeoPoint sender_pt = aXmtr.Platform().Location();
    if (sender_pt.HeightAboveEllipsoid() <= 0)
@@ -758,20 +756,20 @@ script void comm_MessageReceived(WsfComm aXmtr, WsfComm aRcvr, WsfMessage aMsg, 
    NewFileCheck();
 end_script
 
-script void comm_MessageTransmitted(WsfComm aComm, WsfMessage aMsg)
+script void MessageTransmitted_$<UUID:>$(WsfComm aComm, WsfMessage aMsg)
  
    RecordTransmitMessages("MESSAGE_TRANSMITTED", aComm, aMsg);
 
 end_script
 
-script void comm_MessageTransmittedHeartbeat(WsfComm aComm, WsfMessage aMsg) 
+script void MessageTransmittedHeartbeat_$<UUID:>$(WsfComm aComm, WsfMessage aMsg) 
 
    RecordTransmitMessages("MESSAGE_TRANSMITTED_HEARTBEAT", aComm, aMsg);
 
 end_script
 
 
-script void comm_MessageTransmitEnded(WsfComm aComm, WsfMessage aMsg)
+script void MessageTransmitEnded_$<UUID:>$(WsfComm aComm, WsfMessage aMsg)
  
    RecordTransmitMessages("MESSAGE_TRANSMIT_ENDED", aComm, aMsg);
 

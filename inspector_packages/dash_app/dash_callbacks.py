@@ -23,7 +23,7 @@ class DashCallbacks:
 
       self._data = data
       sim_times = pd.read_sql_query(f'SELECT DISTINCT {SharedColumns.SIMULATION_TIME} FROM {COMM_DATA_TABLE}', self._data)
-      self._timestamps = sim_times[SharedColumns.SIMULATION_TIME].values
+      self._timestamps = sim_times[SharedColumns.SIMULATION_TIME].astype(float).values
 
       self._cesium_config = cesium_config
 
@@ -127,7 +127,7 @@ class DashCallbacks:
             {f"WHERE {' AND '.join(self._filter_statements)}" if use_filter else ""}
             '''
          sim_times = pd.read_sql_query(query, self._data)
-         self._timestamps = sim_times[SharedColumns.SIMULATION_TIME].values
+         self._timestamps = sim_times[SharedColumns.SIMULATION_TIME].astype(float).values
 
       if is_single_time:
          if ctx.triggered_id != TIME_SLIDER:
@@ -169,7 +169,7 @@ class DashCallbacks:
             con=self._data, 
             index_col=SharedColumns.EVENT_ID)\
          .replace('nan', np.nan)\
-         .astype(PANDAS_COMM_DATA_TYPES)
+         .astype(PANDAS_COMM_DATA_TYPES)\
 
       return frame
 
@@ -596,6 +596,8 @@ class DashCallbacks:
                internal_json[sender] = group.to_dict()
 
          camera_view = CesiumJSGlobe.set_camera_view(internal, external)
+
+         pdb.set_trace()
 
          if ctx.triggered_id != TIME_SLIDER and ctx.triggered_id != TIME_RANGE_SLIDER and len(self._timestamps) != 0:
             slider_marks = {}

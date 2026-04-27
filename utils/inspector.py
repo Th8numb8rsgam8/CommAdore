@@ -14,6 +14,7 @@ class Inspector:
       ocean_color=None, 
       resolution=None,
       classification=None,
+      mission_output=False,
       use_cesium=False):
 
       self._host = "127.0.0.1"
@@ -21,7 +22,7 @@ class Inspector:
 
       mission_config, cesium_config = self._extract_configs(config_file)
 
-      self._mission_executor = Executor(mission_config)
+      self._mission_executor = Executor(mission_config, mission_output)
       self._mission_executor.get_afsim_data()
 
       self._callbacks = DashCallbacks(

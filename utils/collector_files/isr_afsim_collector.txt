@@ -1,4 +1,4 @@
-script void SetupParameters()
+script void SetupParameters_$<UUID:>$()
     
    commFileOpened = commFile.Open(fileName, "out");
    if (commFileOpened)
@@ -7,11 +7,11 @@ script void SetupParameters()
    }
    else
    {
-      writeln("FAILED TO OPEN " + commFileName);
+      writeln("FAILED TO OPEN " + $<COMM_FILE_NAME:>$);
    }
 
 end_script
 
-script void FinishVisualization()
+script void FinishVisualization_$<UUID:>$()
     commFile.Close();
 end_script

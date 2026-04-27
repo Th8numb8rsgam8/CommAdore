@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import matplotlib.colors as colors
 import utils.util_functions as utils
 
@@ -98,6 +99,13 @@ class CLIParser:
          default=0
       )
 
+      cli_parser.add_argument(
+         "--mission-output",
+         dest="mission_output",
+         action="store_true",
+         help="Option to display mission execution output."
+      )
+
       cli_parser.add_argument("--version", action="version", version='%(prog)s 1.0.0')
       self._arguments = vars(cli_parser.parse_args())
 
@@ -111,14 +119,14 @@ class cli_output:
 
    def INFO(text):
       if cli_output.VERBOSE >= 2:
-         print(f'\033[1;37m {text} \033[0;0m')
+         print(f'\033[1;37m {datetime.now().strftime("%H:%M:%S.%f")}: {text} \033[0;0m')
 
    def OK(text):
-      print(f'\033[1;32m {text} \033[0;0m')
+      print(f'\033[1;32m {datetime.now().strftime("%H:%M:%S.%f")}: {text} \033[0;0m')
 
    def WARNING(text):
       # if cli_output.VERBOSE >= 1:
-      print(f'\033[1;33m {text} \033[0;0m')
+      print(f'\033[1;33m {datetime.now().strftime("%H:%M:%S.%f")}: {text} \033[0;0m')
 
    def FATAL(text):
-      print(f'\033[1;31m {text} \033[0;0m')
+      print(f'\033[1;31m {datetime.now().strftime("%H:%M:%S.%f")}: {text} \033[0;0m')

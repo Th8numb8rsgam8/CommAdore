@@ -3,7 +3,6 @@ import warnings
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
 from flask import make_response, request
 from dash import Input, Output, State, ClientsideFunction, get_asset_url
 from .globe_methods import GlobeMethods
