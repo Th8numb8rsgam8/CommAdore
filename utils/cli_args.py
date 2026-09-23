@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime
 import matplotlib.colors as colors
 import utils.util_functions as utils
+from inspector_packages.dash_app import APP_NAME, VERSION
 
 
 class CLIParser:
@@ -22,7 +23,7 @@ class CLIParser:
    def _parse_arguments(self):
 
       cli_parser = argparse.ArgumentParser(
-         prog="ISR-AFSIM Works",
+         prog=APP_NAME,
          formatter_class=argparse.RawDescriptionHelpFormatter,
          description=
          '''
@@ -94,19 +95,20 @@ class CLIParser:
       )
 
       cli_parser.add_argument(
-         "-v", "--verbose",
-         action="count",
-         default=0
-      )
-
-      cli_parser.add_argument(
          "--mission-output",
          dest="mission_output",
          action="store_true",
          help="Option to display mission execution output."
       )
 
-      cli_parser.add_argument("--version", action="version", version='%(prog)s 1.0.0')
+      cli_parser.add_argument(
+         "-v", "--verbose",
+         action="count",
+         default=0,
+         help="Display verbose output."
+      )
+
+      cli_parser.add_argument("--version", action="version", version=f'\033[1;32m %(prog)s {VERSION} \033[0;0m')
       self._arguments = vars(cli_parser.parse_args())
 
       utils.TIMER_ENABLED = self._arguments.pop("timer_enabled")
@@ -125,8 +127,8 @@ class cli_output:
       print(f'\033[1;32m {datetime.now().strftime("%H:%M:%S.%f")}: {text} \033[0;0m')
 
    def WARNING(text):
-      # if cli_output.VERBOSE >= 1:
-      print(f'\033[1;33m {datetime.now().strftime("%H:%M:%S.%f")}: {text} \033[0;0m')
+      if cli_output.VERBOSE >= 1:
+         print(f'\033[1;33m {datetime.now().strftime("%H:%M:%S.%f")}: {text} \033[0;0m')
 
    def FATAL(text):
       print(f'\033[1;31m {datetime.now().strftime("%H:%M:%S.%f")}: {text} \033[0;0m')

@@ -1,6 +1,7 @@
 import time
 import uuid
 import subprocess
+import tempfile
 import sqlite3
 import sys, os, shutil
 import multiprocessing as mp
@@ -58,54 +59,61 @@ class Executor:
 
    def get_afsim_data(self):
 
+      mission_exitcode = None
       if (self._mission_config["run_mission"]):
       
-         self._run_and_store()
+         mission_exitcode = self._run_and_store()
 
-      self._retrieve_data()
+      self._retrieve_data(mission_exitcode)
 
    @timer
    def _run_and_store(self):
 
-      exec_endpoint, collect_endpoint = mp.Pipe()
-      executor_process = mp.Process(
-         target=self._execute_mission,
-         args=(exec_endpoint,),
-         name="Mission Executor",
-         daemon=True)
+      with tempfile.TemporaryDirectory() as tmpdir:
 
-      collector_process = mp.Process(
-         target=self._store_data,
-         args=("COMM", collect_endpoint),
-         name="Data Collector",
-         daemon=True
-      )
-      executor_process.start()
-      collector_process.start()
-      executor_process.join()
-      collector_process.join()
+         exec_endpoint, collect_endpoint = mp.Pipe()
+         executor_process = mp.Process(
+            target=self._execute_mission,
+            args=(exec_endpoint, tmpdir, cli_output.VERBOSE),
+            name="Mission Executor",
+            daemon=True)
 
-   def _execute_mission(self, exec_endpoint):
+         collector_process = mp.Process(
+            target=self._store_data,
+            args=("COMM", collect_endpoint, tmpdir, cli_output.VERBOSE),
+            name="Data Collector",
+            daemon=True
+         )
+         executor_process.start()
+         collector_process.start()
+         executor_process.join()
+         collector_process.join()
+
+         return executor_process.exitcode
+
+
+   def _execute_mission(self, exec_endpoint, tmpdir, verbose):
 
       try:
+         cli_output.VERBOSE = verbose
          current_process = mp.current_process()
          cli_output.WARNING(f"{current_process.name}:{current_process.pid}")
 
-         executor_file = self._build_executor_file()
+         executor_file = self._build_executor_file(tmpdir)
          self._collect_data(executor_file, exec_endpoint)
 
-         comm_files = [f for f in self._startup_file.parent.glob(f'{self._file_names["COMM"]}*.csv')]
+         comm_files = [f for f in Path(tmpdir).glob(f'{self._file_names["COMM"]}*.csv')]
          exec_endpoint.send(f"{len(comm_files)}")
       except KeyboardInterrupt as e:
          cli_output.FATAL(f"{current_process.name} INTERRUPTED!")
       finally:
          exec_endpoint.close()
-         os.remove(executor_file)
 
-   def _store_data(self, file_name, collect_endpoint):
+   def _store_data(self, file_name, collect_endpoint, tmpdir, verbose):
 
       try:
          mission_exec_started = collect_endpoint.recv()
+         cli_output.VERBOSE = verbose
          current_process = mp.current_process()
          cli_output.WARNING(f"{current_process.name}:{current_process.pid}")
          time.sleep(2)
@@ -118,10 +126,7 @@ class Executor:
             os.mkdir(self._output_dir.joinpath(output_name))
 
          self._db_conn = sqlite3.connect(self._output_dir.joinpath(output_name, "database.db"))
-         execution_result = self._store_in_database(file_name, collect_endpoint)
-         if execution_result == "FAIL":
-            shutil.rmtree(self._output_dir.joinpath(output_name))
-         collect_endpoint.close()
+         execution_result = self._store_in_database(file_name, collect_endpoint, tmpdir)
 
       except KeyboardInterrupt as e:
          cli_output.FATAL(f"{current_process.name} INTERRUPTED!")
@@ -129,24 +134,18 @@ class Executor:
       finally:
          if self._db_conn is not None:
             self._db_conn.close()
-         comm_files = [f for f in self._startup_file.parent.glob(f'{self._file_names[file_name]}*.csv')]
-         for f in comm_files:
-            while True:
-               try:
-                  os.remove(f)
-                  break
-               except PermissionError as e:
-                  pass
+         collect_endpoint.close()
 
 
-   def _retrieve_data(self):
+   def _retrieve_data(self, mission_exitcode):
 
       try:
          output_name = self._mission_config["output_name"]
          db_dir = self._output_dir.joinpath(output_name, "database.db")
          self._db_conn = sqlite3.connect(db_dir, check_same_thread=False)
          self._check_database()
-         pdb.set_trace()
+         if mission_exitcode == 1:
+            cli_output.WARNING("Mission failed execution... data exists for a previous run or incomplete from current run.")
       except sqlite3.OperationalError as e:
          cli_output.FATAL(f'{str(e).upper()}: {db_dir}')
          if self._output_dir.exists():
@@ -156,10 +155,11 @@ class Executor:
                cli_output.FATAL(f"The following datasets are available: \n{data_list}")
          sys.exit(1)
 
-   def _store_in_database(self, data_type, collect_endpoint):
+   def _store_in_database(self, data_type, collect_endpoint, tmpdir):
 
       cur = self._db_conn.cursor()
-      file_path = self._startup_file.parent.joinpath(f"{self._file_names[data_type]}_{self._file_num}.csv")
+      data_dir = Path(tmpdir)
+      file_path = data_dir.joinpath(f"{self._file_names[data_type]}_{self._file_num}.csv")
       total_comm_files = np.Inf
       execution_result = None
 
@@ -170,7 +170,7 @@ class Executor:
                execution_result = collect_endpoint.recv()
                if execution_result == "FAIL":
                   collect_endpoint.send("ACK")
-                  cli_output.WARNING("Aborting data collection... ")
+                  cli_output.FATAL("Aborting data collection... ")
                   break
                else:
                   total_comm_files = int(execution_result)
@@ -187,7 +187,7 @@ class Executor:
 
             cli_output.WARNING(f"{file_path} successfully read and stored in database.")
             self._file_num += 1
-            file_path = self._startup_file.parent.joinpath(f"{self._file_names[data_type]}_{self._file_num}.csv")
+            file_path = data_dir.joinpath(f"{self._file_names[data_type]}_{self._file_num}.csv")
          except FileNotFoundError as e:
             cli_output.WARNING(f"{str(e)}")
          except PermissionError as e:
@@ -243,25 +243,26 @@ class Executor:
 
       return include_doc
 
-   def _set_defines(self):
+   def _set_defines(self, tmpdir):
 
       defines = ""
       defines += f"$define UUID {self._uuid.hex}" + "\n"
       defines += f'$define COMM_FILE_NAME "{self._file_names["COMM"]}"' + "\n"
       defines += f"$define ROWS_PER_FILE {self._rows_per_file}" + "\n"
+      defines += f'$define TMP_DIR "{Path(tmpdir).absolute().as_posix()}"' + "\n"
 
       return defines
    
-   def _build_executor_file(self):
+   def _build_executor_file(self, tmpdir):
 
       with open(self._program_file.parent.joinpath("utils", "collector_files", "isr_afsim_collector.txt"), "r") as collector:
          collector_string = collector.read()
 
       output_name = self._mission_config["output_name"]
-      executor_file = self._program_file.parent.joinpath(output_name + ".afsim")
+      executor_file = Path(tmpdir).joinpath(output_name + ".afsim")
 
       with open(executor_file, "w") as f:
-         f.write("\n".join([self._set_defines(), self._get_include_docs(), collector_string, self._get_observer_block()]))
+         f.write("\n".join([self._set_defines(tmpdir), self._get_include_docs(), collector_string, self._get_observer_block()]))
 
       return executor_file
    
@@ -279,16 +280,13 @@ class Executor:
             exec_endpoint.send("FAIL")
             ack = exec_endpoint.recv()
             exec_endpoint.close()
-            os.remove(executor_file)
             sys.exit(1)
 
          cli_output.OK(f"Mission execution of {self._startup_file} successfully completed.")
-         os.remove(executor_file)
 
       except (NotADirectoryError, FileNotFoundError) as e:
          cli_output.FATAL(f"Mission execution error: {e.strerror}... exiting!")
          exec_endpoint.send("FAIL")
          ack = exec_endpoint.recv()
          exec_endpoint.close()
-         os.remove(executor_file)
          sys.exit(1)

@@ -1,4 +1,4 @@
-# ISR-AFSIM Works
+# CommADore
 The purpose of  this application is to perform exploratory analysis
 of AFSIM ISR elements and processes, particularly information flow. It executes and collects event data from an AFSIM scenario and displays it on a globe and also includes bar plots and 2D network plots. The current version focuses on capturing and analyzing comms events, but future versions are expected to also include sensor detections and track formations.
 
@@ -37,10 +37,13 @@ optional arguments:
   -R, --resolution        Plotly globe surface resolution
   -C, --classification    classification banner markings
   -Cs, --cesium           Flag to use CesiumJS as globe instead of Plotly
+  --timer-enabled         Debug option to display timer results of important functions
+  --mission-output        Option to display mission execution output
+  -v, --verbose           Display application info at various levels
   --version               show program's version
 ```
 
 ## CesiumJS ![](/assets/Assets/Images/cesium_credit.png)
-Cesium is an open-source software that helps to visualize geospatial data, and ISR-AFSIM Works leverages this useful tool to view **mission** data on a globe.
+Cesium is an open-source software that helps to visualize geospatial data, and CommAdore leverages this useful tool to view **mission** data on a globe.
 Cesium is integrated with Python Dash to visualize both the globe and Plotly figures. By default, this application requests Bing Maps to display the globe, which requires an access token. Refer to [Cesium Access Tokens](https://www.cesium.com/learn/ion/cesium-ion-access-tokens/) for instructions on how to obtain your own access token and to include it in the config file. If an access token is invalid or is not provided, Cesium requests for a local resource located in **/earth_data/world.jpg**. The world image is wrapped around a surface
 for a 3D appearance.

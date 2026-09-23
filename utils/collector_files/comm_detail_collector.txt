@@ -6,8 +6,7 @@ script_variables
    int COMM_EVENT_ID = 0;
    
    int FILE_NUM = 1;
-   # int ROWS_PER_FILE = 100000;
-   string fileName = $<COMM_FILE_NAME:>$ + "_" + (string)FILE_NUM + ".csv";
+   string fileName = $<TMP_DIR:>$ + "/" + $<COMM_FILE_NAME:>$ + "_" + (string)FILE_NUM + ".csv";
 
    Map<string, string> EmptyData = Map<string, string>();
    EmptyData["Message_SerialNumber"] = "-1";
@@ -102,7 +101,7 @@ script void NewFileCheck()
    {
       commFile.Close();
       FILE_NUM += 1;
-      fileName = $<COMM_FILE_NAME:>$ + "_" + (string)FILE_NUM + ".csv";      
+      fileName = $<TMP_DIR:>$ + "/" + $<COMM_FILE_NAME:>$ + "_" + (string)FILE_NUM + ".csv";      
       commFileOpened = commFile.Open(fileName, "out");
       if (commFileOpened)
       {

@@ -52,6 +52,33 @@ class DashLayout:
 
       return barplot
 
+   def _initialize_network_plot(self):
+
+      network_plot = dcc.Graph(
+         id=self._network_plot_name, 
+         config={"scrollZoom": True}, 
+         style={
+            'height': '80vh',
+            'display': 'none'
+         }
+      )
+
+      return network_plot
+
+   def _initialize_histogram(self):
+
+      histogram = dcc.Graph(
+         id=TIME_SERIES_HISTOGRAM,
+         config={"scrollZoom": False},
+         style={
+            'height': '200vh',
+            'display': 'block'
+         }
+      )
+
+      return histogram
+
+
    def _get_unique_values(self, col_name, table_name):
       values = pd.read_sql_query(
          f'SELECT DISTINCT {col_name} FROM {table_name}', 
@@ -61,7 +88,6 @@ class DashLayout:
    def _initialize_barplot_options(self):
 
       subplot_options = [
-         SharedColumns.ISO_DATE, 
          SharedColumns.EVENT_TYPE, 
          CommDataColumns.MESSAGE_SERIALNUMBER, 
          CommDataColumns.MESSAGE_ORIGINATOR,
@@ -111,20 +137,6 @@ class DashLayout:
       return barplot_options
 
 
-   def _initialize_network_plot(self):
-
-      network_plot = dcc.Graph(
-         id=self._network_plot_name, 
-         config={"scrollZoom": True}, 
-         style={
-            'height': '80vh',
-            'display': 'none'
-         }
-      )
-
-      return network_plot
-
-
    def _initialize_network_options(self):
 
       network_options = ["Spring", "Circular", "Shell", "Spectral", "Random"]
@@ -148,6 +160,91 @@ class DashLayout:
       )
 
       return network_options
+
+   def _initialize_time_series_options(self):
+
+      subplot_options = [
+         SharedColumns.EVENT_TYPE, 
+         CommDataColumns.MESSAGE_SERIALNUMBER, 
+         CommDataColumns.MESSAGE_ORIGINATOR,
+         CommDataColumns.MESSAGE_TYPE, 
+         CommDataColumns.MESSAGE_SIZE, 
+         CommDataColumns.MESSAGE_PRIORITY, 
+         CommDataColumns.MESSAGE_DATATAG,
+         CommDataColumns.OLDMESSAGE_SERIALNUMBER, 
+         CommDataColumns.OLDMESSAGE_ORIGINATOR, 
+         CommDataColumns.OLDMESSAGE_TYPE,
+         CommDataColumns.OLDMESSAGE_SIZE, 
+         CommDataColumns.OLDMESSAGE_PRIORITY, 
+         CommDataColumns.OLDMESSAGE_DATATAG,
+         CommDataColumns.SENDER_NAME, 
+         CommDataColumns.SENDER_TYPE, 
+         CommDataColumns.SENDER_BASETYPE,
+         CommDataColumns.SENDERPART_NAME, 
+         CommDataColumns.SENDERPART_TYPE, 
+         CommDataColumns.SENDERPART_BASETYPE,
+         CommDataColumns.RECEIVER_NAME, 
+         CommDataColumns.RECEIVER_TYPE, 
+         CommDataColumns.RECEIVER_BASETYPE,
+         CommDataColumns.RECEIVERPART_NAME, 
+         CommDataColumns.RECEIVERPART_TYPE, 
+         CommDataColumns.RECEIVERPART_BASETYPE,
+         CommDataColumns.COMMINTERACTION_SUCCEEDED, 
+         CommDataColumns.COMMINTERACTION_FAILED,
+         CommDataColumns.COMMINTERACTION_FAILEDSTATUS, 
+         CommDataColumns.QUEUE_SIZE
+      ]
+
+      time_series_dropdowns = dbc.AccordionItem([
+         self._create_dropdown("Subplot Category", TIME_SERIES_SUBPLOT, subplot_options, False, None, SharedColumns.EVENT_TYPE, False),
+         self._create_dropdown("Time Series Category", TIME_SERIES_CATEGORY, subplot_options, False, None, CommDataColumns.SENDER_NAME, False),
+      ], title="Time Series Options")
+
+      # time_series_options = dbc.Accordion(
+      #    id=TIME_SERIES_OPTIONS,
+      #    style={
+      #       'display': 'none'
+      #    },
+      #    children=[time_series_dropdowns],
+      #    start_collapsed=True
+      # )
+
+      time_series_options = html.Div(
+         id=TIME_SERIES_OPTIONS,
+         style={
+            'display': 'none'
+         },
+         children=[
+            dbc.Accordion(
+               children=[time_series_dropdowns],
+               start_collapsed=True
+            ),
+            html.Div(
+               className='labeled-div',
+               children=[
+                  html.Label(
+                     "Bin Count",
+                     style={"paddingTop": "20px"}
+                  ),
+                  dcc.Slider(
+                     id=BINS_SLIDER,
+                     min=10, 
+                     max=100,
+                     step=5,
+                     value=10, 
+                     dots=False,
+                     updatemode="mouseup",
+                     tooltip={
+                        "placement": "top", 
+                        "always_visible": True,
+                        "transform": None 
+                  })
+               ]
+            )
+         ]
+      )
+
+      return time_series_options
 
 
    def _set_dash_layout(self):
@@ -231,7 +328,7 @@ class DashLayout:
                self._create_boolean_switch()
             ], width=6),
             dbc.Col([
-               self._create_dropdown("Plots", PLOT_OPTIONS, ["Bar Plot", "Network Plot"], False, False, "Bar Plot", False),
+               self._create_dropdown("Plots", PLOT_OPTIONS, ["Bar Plot", "Time Series Plot", "Network Plot"], False, False, "Bar Plot", False),
                self._create_plots_area(),
                self._create_time_label(),
                self._create_button_group(RADIOS, "Connect to Time Slider")
@@ -295,7 +392,7 @@ class DashLayout:
    def _create_dataframe_message(self):
 
       df_message = html.Div(
-         "ISR-AFSIM Works",
+         APP_NAME,
          id="empty-dataframe-message",
          style={
             'position': 'fixed',
@@ -450,11 +547,13 @@ class DashLayout:
             },
             children=[
                self._initialize_barplot(),
+               self._initialize_histogram(),
                self._initialize_network_plot()
             ]
          )],
          target_components={
             BAR_GRAPH: "figure",
+            TIME_SERIES_HISTOGRAM: "figure",
             self._network_plot_name: "figure"},
          type="graph"
       )
@@ -542,6 +641,7 @@ class DashLayout:
          id=PLOT_FILTERS,
          children=[
             self._initialize_barplot_options(),
+            self._initialize_time_series_options(),
             self._initialize_network_options()
          ]
       )

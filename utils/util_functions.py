@@ -2,6 +2,7 @@ import time
 import ctypes
 from ctypes import wintypes
 from functools import wraps
+from .cli_args import cli_output
 
 TIMER_ENABLED = False
 
@@ -14,7 +15,7 @@ def timer(func):
             result = func(*args, **kwargs)
             end_time = time.perf_counter()
             elapsed_time = end_time - start_time
-            print(f"Function {func.__name__!r} took {elapsed_time:.4f} seconds")
+            cli_output.OK(f"Function {func.__name__!r} took {elapsed_time:.4f} seconds")
             return result
         else:
             return func(*args, **kwargs)
@@ -22,7 +23,6 @@ def timer(func):
 
 class WindowsFileAPI:
 
-    # Define constants
     GENERIC_READ = 0x80000000
     GENERIC_WRITE = 0x40000000
     FILE_SHARE_NONE = 0x00000000 # Do not share read/write/delete

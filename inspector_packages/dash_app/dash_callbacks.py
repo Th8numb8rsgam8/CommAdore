@@ -96,6 +96,7 @@ class DashCallbacks:
          self._define_filter_callback()
 
       self._define_barplot_callback()
+      self._define_time_series_histogram_callback()
       self._define_network_plot_callback()
       self._define_plot_select_callback()
       self._define_filter_storage_callback()
@@ -288,6 +289,53 @@ class DashCallbacks:
             return go.Figure({"data": None, "layout": self._empty_plot})
 
 
+   def _define_time_series_histogram_callback(self):
+
+      @self._app.callback(
+         Output(TIME_SERIES_HISTOGRAM, "figure"),
+         Input(TIME_RANGE_SLIDER, "value"),
+         Input(TIME_SERIES_SUBPLOT, "value"),
+         Input(TIME_SERIES_CATEGORY, "value"),
+         Input(RADIOS, 'value'),
+         Input(DISPLAY_MEMORY, "data"),
+         Input(BINS_SLIDER, "value"),
+         State(TIME_SERIES_HISTOGRAM, "figure")
+      )
+      def update_histogram(
+         time_value, 
+         time_series_subplot, time_series_category,
+         radio_val, filter_data,
+         bin_count, histogram):
+
+         if ctx.triggered_id == BINS_SLIDER:
+            fig_obj = go.Figure(histogram)
+            fig_obj.update_traces(nbinsx=bin_count, selector=dict(type='histogram'))
+            return fig_obj
+
+         if radio_val:
+            frame = self._filter_comm_table(time_value, range_slider=True)
+         else:
+            use_filter = len(self._filter_statements) > 0
+            query = f'''
+               SELECT *
+               FROM {COMM_DATA_TABLE}
+               {f"WHERE {' AND '.join(self._filter_statements)}" if use_filter else ""}
+               '''
+            frame = pd\
+               .read_sql_query(
+                  sql=query, 
+                  con=self._data, 
+                  index_col=SharedColumns.EVENT_ID)\
+               .replace('nan', np.nan)\
+               .astype(PANDAS_COMM_DATA_TYPES)
+
+         if not frame.empty:
+            return TimeSeriesHistogram.create(frame, time_series_subplot, time_series_category, bin_count)
+         else:
+            return go.Figure({"data": None, "layout": self._empty_plot})
+
+
+
    def _define_network_plot_callback(self):
 
       @self._app.callback(
@@ -341,33 +389,56 @@ class DashCallbacks:
 
       @self._app.callback(
          Output(BAR_GRAPH, "style"),
+         Output(TIME_SERIES_HISTOGRAM, "style"),
          Output(self._network_plot.figure_name, "style"),
          Output(BARPLOT_OPTIONS, "style"),
+         Output(TIME_SERIES_OPTIONS, "style"),
          Output(NETWORK_OPTIONS, "style"),
          Input(PLOT_OPTIONS, "value"),
          State(BAR_GRAPH, "style"),
+         State(TIME_SERIES_HISTOGRAM, "style"),
          State(self._network_plot.figure_name, "style"),
          State(BARPLOT_OPTIONS, "style"),
+         State(TIME_SERIES_OPTIONS, "style"),
          State(NETWORK_OPTIONS, "style")
       )
       def select_plot(
          plot_option, 
-         bar_graph_style, network_plot_style,
-         bar_option_style, network_option_style):
+         bar_graph_style, time_series_plot_style, network_plot_style,
+         bar_option_style, time_series_option_style, network_option_style):
 
          if plot_option == "Bar Plot":
             bar_graph_style["display"] = "block"
+            time_series_plot_style["display"] = "none"
             network_plot_style["display"] = "none"
             bar_option_style["display"] = "block"
+            time_series_option_style["display"] = "none"
+            network_option_style["display"] = "none"
+
+         elif plot_option == "Time Series Plot":
+            bar_graph_style["display"] = "none"
+            time_series_plot_style["display"] = "block"
+            network_plot_style["display"] = "none"
+            bar_option_style["display"] = "none"
+            time_series_option_style["display"] = "block"
             network_option_style["display"] = "none"
 
          elif plot_option == "Network Plot":
             bar_graph_style["display"] = "none"
+            time_series_plot_style["display"] = "none"
             network_plot_style["display"] = "block"
             bar_option_style["display"] = "none"
+            time_series_option_style["display"] = "none"
             network_option_style["display"] = "block"
 
-         return bar_graph_style, network_plot_style, bar_option_style, network_option_style
+         return [
+            bar_graph_style, 
+            time_series_plot_style, 
+            network_plot_style, 
+            bar_option_style, 
+            time_series_option_style,
+            network_option_style
+         ]
       
    def _define_single_time_button_callback(self):
 
@@ -596,8 +667,6 @@ class DashCallbacks:
                internal_json[sender] = group.to_dict()
 
          camera_view = CesiumJSGlobe.set_camera_view(internal, external)
-
-         pdb.set_trace()
 
          if ctx.triggered_id != TIME_SLIDER and ctx.triggered_id != TIME_RANGE_SLIDER and len(self._timestamps) != 0:
             slider_marks = {}
